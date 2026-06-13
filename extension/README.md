@@ -5,6 +5,33 @@ your prompt is rewritten smaller - pasted JSON/NDJSON data is re-encoded into a
 compact lossless table and filler is stripped - before you ever hit send. Nothing
 leaves your browser.
 
+## How it works
+
+The whole add-on is one content script, `content.js`: the tested `engine.mjs` inlined
+ahead of a small in-page UI (the `export` keywords are stripped because content scripts
+are not ES modules, so the engine and UI share one scope). `manifest.json` tells the
+browser to inject it only on `chatgpt.com`, `chat.openai.com`, `claude.ai` and
+`gemini.google.com`. There is no background page, no server, and no network call.
+
+1. **It mounts one button.** On load it appends a fixed-position "Shrink prompt" button
+   and a status toast to the page. These chat apps re-render their DOM constantly, so a
+   `MutationObserver` re-appends the button if it ever gets torn out.
+2. **It locates your editor.** On click it grabs the focused element if it is editable,
+   otherwise the first `textarea`, `[contenteditable]` or `[role="textbox"]` on the page.
+   That covers both the plain `<textarea>` and rich editors (ProseMirror, Lexical) these
+   sites use.
+3. **It reads, then runs `optimize()`.** It reads `.value` (textarea/input) or
+   `.innerText` (rich editor), then runs the same lossless pass used by the CLI and the
+   web tool: JSON arrays and NDJSON blocks become a compact `@T1` table, filler is
+   stripped, values are untouched.
+4. **It writes the result back so the app notices.** Setting `.value` directly does not
+   update React/ProseMirror state, so the site would still send the original text. For
+   textareas it calls the native value setter and dispatches a real `input` event; for
+   rich editors it selects the contents and uses `execCommand("insertText")`, which keeps
+   the editor's internal model in sync. A toast then reports the approximate tokens saved.
+
+Nothing is auto-sent - you review the shrunk prompt in the box and press send yourself.
+
 ## Install (takes 30 seconds, no store needed)
 
 1. Build the script (only needed once, or after engine changes):

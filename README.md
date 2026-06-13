@@ -357,9 +357,50 @@ no lossless win for free-form prose - this helps when the answer is uniform reco
 
 ## Browser extension (ChatGPT / Claude / Gemini)
 
-`npm run build:ext`, then load the `extension/` folder via `chrome://extensions`
-(Developer mode -> Load unpacked). A **Shrink prompt** button appears in the prompt
-box. See `extension/README.md` for details.
+A tiny, fully offline add-on that puts a **Shrink prompt** button next to the message
+box on `chatgpt.com`, `chat.openai.com`, `claude.ai` and `gemini.google.com`. It runs
+the exact same lossless codec as everything else here, just inside the page - so you can
+shrink a data-heavy prompt in one click without leaving the chat.
+
+### How it works
+
+It is a single content script (`extension/content.js`, the engine inlined ahead of a
+small UI). The browser injects it only on those four sites. No server, no account
+access, no network call - the codec is bundled in.
+
+1. **It adds one button.** On load it injects a floating "Shrink prompt" button and a
+   status toast. These sites re-render constantly, so a `MutationObserver` re-attaches
+   the button whenever the page rebuilds its DOM.
+2. **On click it reads your prompt box.** It finds the editor you are typing in -
+   whether a plain `<textarea>` or a rich contenteditable editor like ProseMirror or
+   Lexical (what Claude, Gemini and current ChatGPT use) - and pulls the text out.
+3. **It runs `optimize()` on that text.** The same pass used everywhere: any JSON array
+   or NDJSON/log block becomes a compact `@T1` table and filler is stripped. No value is
+   ever changed, so the model sees the same facts for fewer tokens.
+4. **It writes the smaller prompt back the right way.** Just setting `.value` would not
+   register with these apps, so they would still send the old text. The script uses the
+   native value setter plus a real `input` event for textareas, and
+   `execCommand("insertText")` for rich editors, so the site's own state updates as if
+   you had typed it. Then the toast shows roughly how much you saved (and, when relevant,
+   a tip to ask the model to query the data instead of pasting it).
+
+You stay in control: nothing is sent automatically. You click Shrink, see the smaller
+prompt sitting in the box, and press send yourself.
+
+### Install (about 30 seconds, no store needed)
+
+1. `npm run build:ext` - generates `content.js` from the tested engine (only needed
+   once, or after an engine change).
+2. Open `chrome://extensions` (Chrome, Edge or Brave) and turn on **Developer mode**.
+3. Click **Load unpacked** and pick the `extension/` folder.
+4. Open ChatGPT, Claude or Gemini, click into the message box, and press **Shrink prompt**.
+
+Honest limits: the token counts in the toast are an estimate (~4 chars/token) to stay
+fully offline - the savings are real, the exact figure depends on the model's tokenizer;
+and the button is a best-effort overlay, so if a site changes its layout and it cannot
+find your box, click into the box first, then press Shrink. It only ever touches the
+text in the prompt box - never your account, history, or anything else on the page. See
+`extension/README.md` for more.
 
 ---
 
