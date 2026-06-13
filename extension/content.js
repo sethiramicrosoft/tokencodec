@@ -365,6 +365,8 @@ function optimize(text) {
     return (el.tagName === "TEXTAREA" || el.tagName === "INPUT") ? el.value : el.innerText;
   }
   function writeText(el, text) {
+    if (!el) return false;
+    const before = readText(el);
     if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
       const proto = el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement : window.HTMLInputElement;
       const setter = Object.getOwnPropertyDescriptor(proto.prototype, "value");
@@ -381,6 +383,30 @@ function optimize(text) {
       document.execCommand("insertText", false, text);
       el.dispatchEvent(new InputEvent("input", { bubbles: true }));
     }
+    // Verify it took. Some sites refuse programmatic edits; if so the caller copies the
+    // result to the clipboard instead of failing silently.
+    const norm = s => s.replace(/\s+/g, "");
+    const now = readText(el);
+    return now !== before && norm(now).indexOf(norm(text).slice(0, 24)) !== -1;
+  }
+
+  function fallbackCopy(text) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      return ok;
+    } catch (e) { return false; }
+  }
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(() => true).catch(() => fallbackCopy(text));
+    }
+    return Promise.resolve(fallbackCopy(text));
   }
 
   function mkButton(label, bottomPx, bg) {
@@ -421,9 +447,15 @@ function optimize(text) {
     try { result = optimize(text); } catch (e) { show("Could not shrink this prompt."); return; }
     const before = estimate(text), after = estimate(result.optimized);
     if (after >= before) { show("Already tight \u2014 nothing to remove."); return; }
-    writeText(el, result.optimized);
     const pct = Math.round(100 * (before - after) / before);
-    show("Shrunk ~" + pct + "% (about " + (before - after) + " fewer tokens)." + (result.flags.length ? " Tip: " + result.flags[0].message : ""));
+    const tip = result.flags.length ? " Tip: " + result.flags[0].message : "";
+    if (writeText(el, result.optimized)) {
+      show("Shrunk ~" + pct + "% (about " + (before - after) + " fewer tokens)." + tip);
+    } else {
+      copyText(result.optimized).then(ok => show(ok
+        ? "This box blocks auto-edit, so I copied the shrunk prompt (~" + pct + "% smaller). Press Ctrl+V to paste it in." + tip
+        : "This box blocks auto-edit. Select all in the box and replace it with the shrunk prompt."));
+    }
   });
 
   // OUTPUT side: append a one-line rule so the model answers tabular data as a
@@ -436,8 +468,13 @@ function optimize(text) {
     const text = readText(el);
     if (text && text.indexOf("@T1(col:type") !== -1) { show("The compact-reply rule is already in your prompt."); return; }
     const next = (text && text.trim()) ? text.replace(/\s*$/, "") + "\n\n" + REPLY_HINT : REPLY_HINT;
-    writeText(el, next);
-    show("Added a reply-saver: tabular answers come back as a compact @T1 table (cheaper output). Paste the reply into the TokenCodec page to read it. Worth it when you expect a list or table.");
+    if (writeText(el, next)) {
+      show("Added a reply-saver: tabular answers come back as a compact @T1 table (cheaper output). Paste the reply into the TokenCodec page to read it. Worth it when you expect a list or table.");
+    } else {
+      copyText(next).then(ok => show(ok
+        ? "This box blocks auto-edit, so I copied your prompt with the reply-saver rule added. Press Ctrl+V to paste it in."
+        : "This box blocks auto-edit. Add the @T1 reply rule to your prompt manually."));
+    }
   });
 
   function mount() {

@@ -146,6 +146,36 @@ function sampleRecords() {
     ok(decoyOut === "search", "extension: the decoy editor (e.g. a sidebar search box) is left untouched");
     await decoyPage.close();
 
+    // ---------- B4. A box that refuses programmatic edits: copy to clipboard, say so ----------
+    // Some editors revert any change they did not originate. The extension verifies the write
+    // took; if the box refused, it copies the shrunk prompt to the clipboard and tells the user
+    // to paste it, instead of failing silently or wiping their text. Simulate a hostile editor
+    // that reverts on every input event, and capture what the extension copies.
+    const rejectPage = await ctx.newPage();
+    await rejectPage.setContent('<!doctype html><html><body><div id="rej" contenteditable="true" role="textbox" style="width:600px;min-height:200px"></div></body></html>');
+    await rejectPage.addScriptTag({ path: path.join(root, "extension", "content.js") });
+    await rejectPage.evaluate((p) => {
+      const cap = (t) => { window.__copied = t; return Promise.resolve(); };
+      try { navigator.clipboard.writeText = cap; } catch (e) {}
+      if (!navigator.clipboard || navigator.clipboard.writeText !== cap) {
+        Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: cap } });
+      }
+      const el = document.getElementById("rej");
+      el.focus(); el.textContent = p; window.__orig = p;
+      el.addEventListener("input", () => { if (el.innerText !== window.__orig) el.innerText = window.__orig; });
+    }, richPrompt);
+    await rejectPage.focus("#rej");
+    await rejectPage.locator("button", { hasText: "Shrink prompt" }).click();
+    await rejectPage.waitForTimeout(150);
+    const rejBox = await rejectPage.evaluate(() => document.getElementById("rej").innerText);
+    const rejCopied = await rejectPage.evaluate(() => window.__copied);
+    const rejToast = await rejectPage.locator('[role="status"]').first().textContent();
+    ok(!rejBox.includes("@T1("), "extension: a box that refuses edits keeps the user's text (no silent failure, nothing wiped)");
+    ok(rejCopied && rejCopied.includes("@T1("), "extension: the shrunk prompt is copied to the clipboard when the box blocks auto-edit");
+    ok(rejCopied && eq(tableDecode(rejCopied.slice(rejCopied.indexOf("@T1("))), recs), "extension: the clipboard copy is the lossless @T1 table");
+    ok(/copied/i.test(rejToast || ""), "extension: the toast tells the user it copied the result to paste with Ctrl+V");
+    await rejectPage.close();
+
     // ---------- C. Output decode (the reply round-trip, for non-technical web users) ----------
     const expectReply = [
       { name: "Riley Brooks", score: 95, remote: true },

@@ -431,12 +431,15 @@ access, no network call - the codec is bundled in.
 3. **It runs `optimize()` on that text.** The same pass used everywhere: any JSON array
    or NDJSON/log block becomes a compact `@T1` table and filler is stripped. No value is
    ever changed, so the model sees the same facts for fewer tokens.
-4. **It writes the smaller prompt back the right way.** Just setting `.value` would not
-   register with these apps, so they would still send the old text. The script uses the
-   native value setter plus a real `input` event for textareas, and
-   `execCommand("insertText")` for rich editors, so the site's own state updates as if
-   you had typed it. Then the toast shows roughly how much you saved (and, when relevant,
-   a tip to ask the model to query the data instead of pasting it).
+4. **It writes the smaller prompt back the right way, and checks it took.** Just setting
+   `.value` would not register with these apps, so they would still send the old text. The
+   script uses the native value setter plus a real `input` event for textareas, and
+   `execCommand("insertText")` for rich editors, so the site's own state updates as if you
+   had typed it. It then reads the box back to confirm the edit landed; if a site refuses
+   programmatic edits, it copies the shrunk prompt to your clipboard and the toast tells you
+   to paste it with Ctrl+V - it never fails silently or wipes what you typed. Then the toast
+   shows roughly how much you saved (and, when relevant, a tip to ask the model to query the
+   data instead of pasting it).
 
 You stay in control: nothing is sent automatically. You click Shrink, see the smaller
 prompt sitting in the box, and press send yourself.
@@ -473,14 +476,16 @@ should report the tokens saved (see the [before/after screenshots](#what-it-look
 above, which come from this exact flow). Press **Compact reply** to append the one-line
 reply rule. Then press the chat's own send button yourself - the model reads the table
 exactly as it read the JSON. If the toast says it could not find your box, click into the
-box once and press Shrink again.
+box once and press Shrink again. If a site refuses an automated edit, the toast will say it
+copied the shrunk prompt instead - just press Ctrl+V in the box.
 
 Honest limits: the token counts in the toast are an estimate (~4 chars/token) to stay
 fully offline - the savings are real, the exact figure depends on the model's tokenizer;
 and the button is a best-effort overlay, so if a site changes its layout and it cannot
-find your box, click into the box first, then press Shrink. It only ever touches the
-text in the prompt box - never your account, history, or anything else on the page. See
-`extension/README.md` for more.
+find your box, click into the box first, then press Shrink. If a site blocks programmatic
+edits, it copies the result to your clipboard to paste rather than failing silently. It
+only ever touches the text in the prompt box - never your account, history, or anything
+else on the page. See `extension/README.md` for more.
 
 ---
 
@@ -614,17 +619,18 @@ What's covered, end to end:
   from the engine, the benchmarks and the pinned pricing snapshot, then asserted against
   the prose - so no number here can silently drift. The wire-format example is decoded to
   prove it is valid.
-- **E2E browser** (23 checks): the web tool's displayed token counts equal a real
+- **E2E browser** (27 checks): the web tool's displayed token counts equal a real
   tokenizer, the % and $ figures are arithmetically correct, the output decodes back to
   the original data (lossless), the model switch recomputes cost, copy confirms, the
   "Shrink the reply too" panel expands a compact `@T1` reply losslessly, and the actual
   `extension/content.js` is loaded into a real page where its "Shrink prompt" button
   losslessly compacts both a plain `<textarea>` and a contenteditable rich editor (the
   path ChatGPT/Claude use), it shrinks the editor you focused rather than a decoy search
-  box when several share the page, and its "Compact reply" button adds the `@T1` rule -
-  all with zero console errors. (The live ChatGPT/Claude/Gemini sites are not driven -
-  they need a login and block automation - so the content script is exercised against
-  equivalent editors rather than the real pages.)
+  box when several share the page, it copies the result to the clipboard (and says so)
+  when a box refuses an automated edit instead of wiping it, and its "Compact reply"
+  button adds the `@T1` rule - all with zero console errors. (The live ChatGPT/Claude/Gemini
+  sites are not driven - they need a login and block automation - so the content script is
+  exercised against equivalent editors rather than the real pages.)
 
 ## License
 

@@ -31,7 +31,10 @@ browser to inject it only on `chatgpt.com`, `chat.openai.com`, `claude.ai` and
    update React/ProseMirror state, so the site would still send the original text. For
    textareas it calls the native value setter and dispatches a real `input` event; for
    rich editors it selects the contents and uses `execCommand("insertText")`, which keeps
-   the editor's internal model in sync. A toast then reports the approximate tokens saved.
+   the editor's internal model in sync. It then reads the box back to confirm the edit
+   landed; if a site refuses programmatic edits, it copies the shrunk prompt to your
+   clipboard and the toast tells you to paste it with Ctrl+V, rather than failing silently
+   or wiping what you typed. A toast then reports the approximate tokens saved.
 
 **Saving output tokens (the second button).** A raw chat has no system-prompt field, so
 the only honest channel to the model is the message itself. **Compact reply** appends a
