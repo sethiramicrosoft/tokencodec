@@ -52,12 +52,26 @@
     <div>
       <label for="model" style="margin:0 0 6px">Price model</label>
       <select id="model">
-        <option value="2.5">GPT-4o — $2.50 / million tokens</option>
-        <option value="0.15">GPT-4o mini — $0.15 / million tokens</option>
-        <option value="3">Claude Sonnet — $3 / million tokens</option>
-        <option value="15">Claude Opus — $15 / million tokens</option>
-        <option value="0.8">Claude Haiku — $0.80 / million tokens</option>
-        <option value="1.25">Gemini Pro — $1.25 / million tokens</option>
+        <optgroup label="OpenAI">
+          <option value="5">GPT-5.5 — $5.00 / million tokens</option>
+          <option value="0.75">GPT-5.5 mini — $0.75 / million tokens</option>
+          <option value="0.20">GPT-5 nano — $0.20 / million tokens</option>
+        </optgroup>
+        <optgroup label="Anthropic">
+          <option value="5">Claude Opus 4.5 — $5.00 / million tokens</option>
+          <option value="3" selected>Claude Sonnet 4.5 — $3.00 / million tokens</option>
+          <option value="1">Claude Haiku 4.5 — $1.00 / million tokens</option>
+        </optgroup>
+        <optgroup label="Google">
+          <option value="2">Gemini 3 Pro — $2.00 / million tokens</option>
+          <option value="1.5">Gemini 3.5 Flash — $1.50 / million tokens</option>
+        </optgroup>
+        <optgroup label="xAI">
+          <option value="1.25">Grok 4 — $1.25 / million tokens</option>
+        </optgroup>
+        <optgroup label="DeepSeek">
+          <option value="0.44">DeepSeek V4 — $0.44 / million tokens</option>
+        </optgroup>
       </select>
     </div>
     <span style="color:#aab2c0;font-size:.85rem;align-self:center">Results update as you type.</span>
@@ -80,7 +94,7 @@
 
   <footer>
     "Lossless" means the data you get back is identical to what you put in — same values, every time, fully reversible.
-    Token counts use the GPT-4o (o200k) tokenizer. Prices are public list prices — adjust for your actual tier. Not financial advice.
+    Token counts use the o200k tokenizer as a close cross-model approximation. Prices are public June 2026 list prices (input tokens) — adjust for your actual tier. Not financial advice.
   </footer>
 </main>
 
