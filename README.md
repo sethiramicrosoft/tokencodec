@@ -1,23 +1,27 @@
-# Token Diet
+# TokenCodec
 
-**If an AI reads your words or data, you pay for every one. Token Diet cuts the waste.**
+**The lossless codec for LLM prompts and data. Re-encode to a fraction of the tokens, then decode back byte-for-byte.**
 
-**Try it live, no install:** https://sethiramicrosoft.github.io/token-diet/
+**Try it live, no install:** https://sethiramicrosoft.github.io/tokencodec/
 
-AI tools charge by the *token* - a token is a small chunk of text, about 3/4 of a
-word. Every file your AI re-reads, every spreadsheet you paste, every long chat
-that resends its whole history: you pay for all of it, every time. On a big
-project that quietly runs into millions of tokens and real money.
+If an AI reads your words or data, you pay for every token. Most "prompt
+compressors" shrink text by *summarizing or trimming* it - and quietly risk
+changing what you meant. TokenCodec is different: it is a **codec**, a reversible
+transform. It re-encodes the structured data in your prompt into a compact typed
+table, and you can decode it back to the exact original - proven by an 8,000-trial
+round-trip fuzz with zero data loss. Same facts, a fraction of the tokens, nothing
+guessed and nothing lost.
 
-Token Diet trims that waste. It comes in two pieces, and you can use either or both:
+It comes in pieces you can use together or alone:
 
-- **The rules installer** - one command that teaches your AI *coding* tools
-  (Claude Code, Copilot, Cursor, Codex, Gemini, Aider) to stop wasting tokens by
-  default. Best for software, full-stack and data work done through an AI agent.
-- **The local optimizer** - a tiny web page (and an importable engine) that takes
-  any prompt or dataset and hands back a smaller version that means exactly the
-  same thing. Today you run it locally; a hosted, zero-install version is on the
-  roadmap below.
+- **The lossless engine** - re-encodes JSON/NDJSON data in a prompt to ~70% fewer
+  tokens, fully reversible. Importable, or built into the tools below.
+- **The rules installer** - one command that teaches your AI coding tools (Claude
+  Code, Copilot, Cursor, Codex, Gemini, Aider) to stop wasting tokens by default.
+- **The browser optimizer** - paste a prompt, see the savings, copy it back. Live
+  at the link above; runs entirely in your browser.
+- **The browser extension + API middleware** - shrink prompts inside ChatGPT,
+  Claude and Gemini, or in your own backend at runtime.
 
 Everything runs on your own computer. **Nothing is ever uploaded** - which matters
 if your data is medical, financial, legal, or otherwise sensitive.
@@ -38,7 +42,7 @@ they work today:
 
 2. **The data scientist / analyst.**
    Pastes a 10,000-row CSV to ask "average by region?" and pays for all 10,000 rows.
-   Token Diet turns it into a 3-line query that returns only the answer - up to
+   TokenCodec turns it into a 3-line query that returns only the answer - up to
    **1,000x fewer tokens** - and when you must include data, shrinks it ~70% with
    zero values changed.
 
@@ -64,7 +68,7 @@ they work today:
 
 ## The wider list - if your AI reads it, you're paying for it
 
-| You are a... | Where your tokens go | What Token Diet does |
+| You are a... | Where your tokens go | What TokenCodec does |
 |---|---|---|
 | **Software / full-stack developer** | The AI agent re-reads whole files, reprints a 500-line file to change 3 lines, dumps giant build/test logs, and resends the entire chat every turn | The rules make it search and read only what it needs, send small diffs, trim logs, and keep a compact running state (kills the quadratic chat-history tax) |
 | **Data scientist / analyst** | Pasting a 10,000-row CSV to ask one question makes the model read all 10,000 rows | Flags it and tells the AI to write a query, run it, return only the answer - up to **1,000x fewer tokens** - and shrinks data you must include, losslessly |
@@ -80,7 +84,7 @@ they work today:
 | **Executive / team lead** | Your whole team's AI bill, multiplied across every repo | Install once, enforce in CI with `--check` - cut spend without changing how anyone works |
 
 The single idea behind all of it: **never make the AI read, reprint, or repeat
-anything it doesn't have to.** Token Diet just makes that the default.
+anything it doesn't have to.** TokenCodec just makes that the default.
 
 ---
 
@@ -125,7 +129,7 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
 ### The hosted page is live
 
 The in-browser optimizer is published (free GitHub Pages) at
-**https://sethiramicrosoft.github.io/token-diet/** - zero install, works on any
+**https://sethiramicrosoft.github.io/tokencodec/** - zero install, works on any
 device, nothing uploaded. It auto-redeploys whenever the web tool changes.
 
 ---
@@ -148,19 +152,19 @@ No experience needed. Follow these in order.
 
    A number like `v20.11.0` means you're ready.
 
-## Step 1 - Download Token Diet
+## Step 1 - Download TokenCodec
 
 Copy-paste these two lines, one at a time:
 
 ```bash
-git clone https://github.com/sethiramicrosoft/token-diet.git
-cd token-diet
+git clone https://github.com/sethiramicrosoft/tokencodec.git
+cd tokencodec
 ```
 
 (No `git`? On the GitHub page click the green **Code** button -> **Download ZIP**,
 unzip it, then open that folder in your terminal.)
 
-## Step 2 - Put your AI coding tools on a diet
+## Step 2 - Make your AI coding tools token-efficient
 
 *(Skip to Step 3 if you don't use an AI coding agent.)*
 
@@ -168,28 +172,28 @@ Go into the project you build with AI, and run the installer from there:
 
 ```bash
 cd /path/to/your-project
-node /path/to/token-diet/install.mjs
+node /path/to/tokencodec/install.mjs
 ```
 
 You'll see it create the rule files your AI already reads (`AGENTS.md`,
 `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`,
-`.cursor/rules/token-diet.mdc`). **That's all.** Keep using your AI exactly as
+`.cursor/rules/tokencodec.mdc`). **That's all.** Keep using your AI exactly as
 before - it's now cheaper. Preview first with `--dry-run`; undo anytime with
 `--remove`.
 
 ### Using GitHub Copilot CLI? Install it once for every repo
 
 Copilot CLI reads instructions from `~/.copilot/copilot-instructions.md` for
-**every** session, in any folder. Install the diet there once and you never think
+**every** session, in any folder. Install the rules there once and you never think
 about it again:
 
 ```bash
-node /path/to/token-diet/install.mjs --global   # writes ~/.copilot/copilot-instructions.md
-node /path/to/token-diet/install.mjs --global --dry-run   # preview first
-node /path/to/token-diet/install.mjs --global --remove    # undo
+node /path/to/tokencodec/install.mjs --global   # writes ~/.copilot/copilot-instructions.md
+node /path/to/tokencodec/install.mjs --global --dry-run   # preview first
+node /path/to/tokencodec/install.mjs --global --remove    # undo
 ```
 
-From then on, every Copilot CLI session starts on a token diet: it searches
+From then on, every Copilot CLI session runs token-efficient: it searches
 instead of reading whole files, sends small diffs, trims tool output, queries data
 instead of pasting it, and keeps its history compact. (The per-repo install above
 also covers Copilot via `AGENTS.md` and `.github/copilot-instructions.md` - use
@@ -197,7 +201,7 @@ also covers Copilot via `AGENTS.md` and `.github/copilot-instructions.md` - use
 
 ## Step 3 - Shrink any prompt in your browser
 
-Works for everyone, coder or not. From inside the `token-diet` folder:
+Works for everyone, coder or not. From inside the `tokencodec` folder:
 
 ```bash
 node serve.mjs
@@ -250,7 +254,7 @@ loss. It's not a lossy summary. It's the same information, written compactly.
 (`--check`, `--remove` and `--dry-run` all accept `--global` too.)
 
 **For teams / orgs:** commit the generated files, then add `node install.mjs --check`
-to CI. Every repo stays on the diet, and a drifted or tampered rules block fails
+to CI. Every repo stays optimized, and a drifted or tampered rules block fails
 the build. One policy, enforced everywhere, zero day-to-day friction.
 
 ## Use the engine in your own code or pipeline
@@ -324,7 +328,7 @@ conservative and honest about their edges.
 - **The boundary that matters (read this).** The codec operates on values that have
   *already passed through* `JSON.parse`. JSON stores every number as an IEEE-754
   double, so a 19-digit ID or a 40-significant-digit decimal in your source text is
-  already approximated *before* Token Diet ever sees it. The codec **refuses** such
+  already approximated *before* TokenCodec ever sees it. The codec **refuses** such
   unsafe integers instead of emitting a mangled value, but it cannot restore
   precision JSON itself discarded. **For exact arbitrary-precision values, carry them
   as strings** - strings round-trip perfectly, every character.

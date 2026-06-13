@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Token Diet installer.
+// TokenCodec installer.
 // Writes a token-efficiency rules block into every AI coding agent's config
 // file, via an idempotent managed block. Safe to run repeatedly: it preserves
 // everything outside the block and never keeps duplicates.
@@ -19,10 +19,10 @@ import path from "node:path";
 import os from "node:os";
 
 export const VERSION = "1";
-const START = `<!-- TOKEN-DIET:START v${VERSION} (managed by token-diet; edit rules upstream, not here) -->`;
-const END = "<!-- TOKEN-DIET:END -->";
+const START = `<!-- TOKENCODEC:START v${VERSION} (managed by tokencodec; edit rules upstream, not here) -->`;
+const END = "<!-- TOKENCODEC:END -->";
 
-export const BODY = `# Token Diet - read this before doing anything
+export const BODY = `# TokenCodec - read this before doing anything
 
 Optimize for tokens. Never trade away correctness to do it. If a step genuinely
 needs the whole file or dataset, use it.
@@ -53,7 +53,7 @@ Before sending: am I pasting anything the model could fetch, grep, or compute
 itself? If yes, do that instead.`;
 
 const MDC_FRONTMATTER = `---
-description: Token-efficient behavior for AI coding agents (Token Diet)
+description: Token-efficient behavior for AI coding agents (TokenCodec)
 alwaysApply: true
 ---
 `;
@@ -64,7 +64,7 @@ export const TARGETS = [
   { tool: "Claude Code", file: "CLAUDE.md", header: "# CLAUDE.md\n" },
   { tool: "Gemini CLI", file: "GEMINI.md", header: "# GEMINI.md\n" },
   { tool: "GitHub Copilot", file: path.join(".github", "copilot-instructions.md"), header: "# Copilot instructions\n" },
-  { tool: "Cursor (native rules)", file: path.join(".cursor", "rules", "token-diet.mdc"), header: MDC_FRONTMATTER },
+  { tool: "Cursor (native rules)", file: path.join(".cursor", "rules", "tokencodec.mdc"), header: MDC_FRONTMATTER },
 ];
 
 // Global targets live under the user's home and apply across every repo. The
@@ -143,7 +143,7 @@ function statusOf(absPath) {
 function install(dir, { dryRun = false, global = false, home } = {}) {
   const { root, items } = resolveTargets(dir, { global, home });
   fs.mkdirSync(root, { recursive: true });
-  console.log(dryRun ? "Token Diet -> DRY RUN (no files written)\n" : `Token Diet -> installing token-efficiency rules${global ? " (global: all your repos)" : ""}\n`);
+  console.log(dryRun ? "TokenCodec -> DRY RUN (no files written)\n" : `TokenCodec -> installing token-efficiency rules${global ? " (global: all your repos)" : ""}\n`);
   for (const t of items) {
     const abs = t.abs;
     try {
@@ -163,27 +163,27 @@ function install(dir, { dryRun = false, global = false, home } = {}) {
     }
   }
   if (dryRun) { console.log("\nDry run only. Re-run without --dry-run to apply."); return; }
-  console.log(global ? "\nDone. Copilot CLI now starts every repo on a token diet." : "\nDone. Every agent in this repo now starts on a token diet.");
+  console.log(global ? "\nDone. Copilot CLI now runs token-efficient in every repo." : "\nDone. Every agent in this repo now runs token-efficient.");
   console.log("Run with --check in CI to keep it that way.");
 }
 
 function check(dir, { global = false, home } = {}) {
   const { items } = resolveTargets(dir, { global, home });
   let bad = 0;
-  console.log("Token Diet -> status\n");
+  console.log("TokenCodec -> status\n");
   for (const t of items) {
     const st = statusOf(t.abs);
     if (st !== "ok") bad++;
     const mark = st === "ok" ? "ok      " : st === "outdated" ? "OUTDATED" : "MISSING ";
     console.log(`  ${mark}  ${t.label}`);
   }
-  if (bad) { console.log(`\n${bad} file(s) need 'token-diet'. Run it to fix.`); process.exitCode = 1; }
+  if (bad) { console.log(`\n${bad} file(s) need 'tokencodec'. Run it to fix.`); process.exitCode = 1; }
   else console.log("\nAll targets present and current.");
 }
 
 function remove(dir, { global = false, home } = {}) {
   const { root, items } = resolveTargets(dir, { global, home });
-  console.log("Token Diet -> removing managed blocks\n");
+  console.log("TokenCodec -> removing managed blocks\n");
   for (const t of items) {
     const abs = t.abs;
     if (!fs.existsSync(abs)) continue;
@@ -208,7 +208,7 @@ function remove(dir, { global = false, home } = {}) {
 }
 
 function list() {
-  console.log("Token Diet targets (per repo):\n");
+  console.log("TokenCodec targets (per repo):\n");
   for (const t of TARGETS) console.log(`  ${t.file.padEnd(34)} ${t.tool}`);
   console.log("\nGlobal target (--global), applies to every repo:\n");
   for (const t of GLOBAL_TARGETS) console.log(`  ${t.label.padEnd(34)} ${t.tool}`);

@@ -1,4 +1,4 @@
-// Token Diet content script. GENERATED from engine.mjs + extension/build-extension.mjs.
+// TokenCodec content script. GENERATED from engine.mjs + extension/build-extension.mjs.
 // Do not edit by hand; edit the engine or the build script and rebuild.
 // Prompt Optimizer engine. Pure string logic, no dependencies.
 //
@@ -286,7 +286,7 @@ function optimize(text) {
 }
 
 
-// ---- Token Diet in-page UI ----------------------------------------------
+// ---- TokenCodec in-page UI ----------------------------------------------
 (function () {
   const estimate = s => Math.ceil([...s].length / 4); // approximate, no network
 
@@ -321,7 +321,7 @@ function optimize(text) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.textContent = "\u{1F343} Shrink prompt";
-  btn.setAttribute("aria-label", "Shrink the current prompt with Token Diet");
+  btn.setAttribute("aria-label", "Shrink the current prompt with TokenCodec");
   Object.assign(btn.style, {
     position: "fixed", right: "18px", bottom: "96px", zIndex: 2147483647,
     padding: "8px 12px", borderRadius: "8px", border: "none", background: "#1452d9",

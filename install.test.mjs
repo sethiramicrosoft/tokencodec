@@ -52,7 +52,7 @@ install(tmp); // AGENTS.md gets a block appended; the rest are created fresh
 remove(tmp);
 ok(exists("AGENTS.md") && read("AGENTS.md").includes("Use spaces."), "remove keeps user file + content");
 ok(getBlockBody(read("AGENTS.md")) === null, "remove strips the block from user file");
-ok(!exists(path.join(".cursor", "rules", "token-diet.mdc")), "remove deletes our-only mdc file");
+ok(!exists(path.join(".cursor", "rules", "tokencodec.mdc")), "remove deletes our-only mdc file");
 ok(!exists("CLAUDE.md"), "remove deletes our-only CLAUDE.md");
 
 // 7. render never loses bytes outside the block (property-ish)
@@ -85,7 +85,7 @@ install(tmp);
 fs.writeFileSync(path.join(tmp, "AGENTS.md"), "# user\n" + START + "\nBROKEN\n");
 install(tmp);
 ok(countBlocks(read("AGENTS.md")) === 1, "orphan START repaired to exactly one block");
-ok((read("AGENTS.md").match(/TOKEN-DIET:END/g) || []).length === 1, "exactly one END after repair");
+ok((read("AGENTS.md").match(/TOKENCODEC:END/g) || []).length === 1, "exactly one END after repair");
 ok(getBlockBody(read("AGENTS.md")) === BODY, "managed content restored after repair");
 
 // 9. directory at a target path does not crash the whole install (qa-saboteur)

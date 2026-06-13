@@ -1,4 +1,4 @@
-# Token Diet - browser extension
+# TokenCodec - browser extension
 
 Adds a **Shrink prompt** button inside ChatGPT, Claude and Gemini. Click it and
 your prompt is rewritten smaller - pasted JSON/NDJSON data is re-encoded into a

@@ -36,7 +36,7 @@ async function serveTests() {
   await new Promise(r => setTimeout(r, 1200));
   try {
     const idx = await rawGet("/");
-    ok(idx.status === 200 && idx.body.includes("Token Diet"), "serve: GET / returns the optimizer page");
+    ok(idx.status === 200 && idx.body.includes("TokenCodec"), "serve: GET / returns the optimizer page");
     const eng = await rawGet("/engine.mjs");
     ok(eng.status === 200 && /javascript/.test(eng.type || ""), "serve: engine.mjs served as javascript");
     const miss = await rawGet("/does-not-exist.xyz");

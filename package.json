@@ -1,10 +1,10 @@
 {
-  "name": "token-diet",
+  "name": "tokencodec",
   "version": "1.0.0",
-  "description": "Put every AI coding agent on a token diet before you start vibe coding. One command writes token-efficiency rules into AGENTS.md, CLAUDE.md, GEMINI.md, Copilot and Cursor.",
+  "description": "The lossless prompt and data codec for LLMs: re-encode prompts to a fraction of the tokens and decode back byte-for-byte. One command makes every AI coding agent token-efficient.",
   "type": "module",
   "bin": {
-    "token-diet": "install.mjs"
+    "tokencodec": "install.mjs"
   },
   "scripts": {
     "test": "node engine.test.mjs && node install.test.mjs && node middleware/compress.test.mjs",
