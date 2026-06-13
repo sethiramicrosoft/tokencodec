@@ -351,6 +351,16 @@ Header is `@T<version>(name:type,...)`, current version `1`. Types: `s` string
 `b` boolean (`1`/`0`); null is the unquoted sentinel `\N` (a quoted `"\N"` is the
 literal text).
 
+## Does the model still read it correctly?
+
+Lossless storage is one thing; an LLM answering just as well from the compact
+table is another, so it is measured separately (`benchmark/`). On a 30-row set with
+10 questions, GPT-5.4-mini scored **10/10 on the table, identical to JSON, at 54%
+fewer tokens**; Claude Haiku 4.5 matched on every lookup/filter/compare task and
+only slipped on raw multi-row arithmetic (a 30-number sum) - which you should
+offload from the model anyway. Reproduce it yourself with `benchmark/benchmark.mjs`;
+honest write-up and caveats in `benchmark/RESULTS.md`.
+
 ## Safety
 
 - **Idempotent:** running it twice changes nothing the second time.
