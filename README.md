@@ -199,6 +199,30 @@ instead of pasting it, and keeps its history compact. (The per-repo install abov
 also covers Copilot via `AGENTS.md` and `.github/copilot-instructions.md` - use
 `--global` when you want it everywhere by default.)
 
+#### How a text file changes the agent's behavior
+
+No magic, and worth being precise about:
+
+1. **These agents load instruction files at the start of every session.** Copilot
+   CLI reads `~/.copilot/copilot-instructions.md` (and `AGENTS.md`,
+   `.github/copilot-instructions.md`, `CLAUDE.md`, ...); Claude Code reads
+   `CLAUDE.md`; Codex/others read `AGENTS.md`. Whatever is in those files is placed
+   into the model's context before it sees your first prompt.
+2. **The installer puts nine plain, prioritized rules there** - search before you
+   read, query data instead of pasting it, make small diffs, trim tool output, keep
+   history compact, and so on. To the model they read as standing house rules for
+   every task, exactly like the custom instructions you already write by hand.
+3. **The model then applies them as it works.** When you say "fix the failing
+   test," rule 1 nudges it to grep to the relevant lines instead of opening the
+   whole file, rule 5 to surface just the failing log lines instead of the full
+   dump, rule 6 to reply with a small diff. Same result, fewer tokens in and out.
+
+**The honest limit:** these are *instructions the model follows*, not a hard switch
+the runtime enforces. A capable model honors them most of the time, but not with
+100% guarantee - so treat it as a strong, free nudge that compounds over long
+sessions, not a contract. You can see the active rules any time with `/instructions`
+or `/env` in Copilot CLI, and remove them with `--global --remove`.
+
 ## Step 3 - Shrink any prompt in your browser
 
 Works for everyone, coder or not. From inside the `tokencodec` folder:
