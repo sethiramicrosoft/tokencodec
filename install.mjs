@@ -6,13 +6,17 @@
 //
 // Usage:
 //   node install.mjs            install/update into this repo
+//   node install.mjs --global   install into ~/.copilot/copilot-instructions.md
+//                               (applies to GitHub Copilot CLI across ALL your repos)
 //   node install.mjs --check    report status; exit 1 if missing/outdated (CI)
 //   node install.mjs --remove   strip the managed block from every target
 //   node install.mjs --list     list target files
 //   node install.mjs --dir <p>  operate on <p> instead of the current directory
+//   (--check / --remove / --dry-run all accept --global too)
 
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 
 export const VERSION = "1";
 const START = `<!-- TOKEN-DIET:START v${VERSION} (managed by token-diet; edit rules upstream, not here) -->`;
@@ -62,6 +66,21 @@ export const TARGETS = [
   { tool: "GitHub Copilot", file: path.join(".github", "copilot-instructions.md"), header: "# Copilot instructions\n" },
   { tool: "Cursor (native rules)", file: path.join(".cursor", "rules", "token-diet.mdc"), header: MDC_FRONTMATTER },
 ];
+
+// Global targets live under the user's home and apply across every repo. The
+// Copilot CLI reads ~/.copilot/copilot-instructions.md for all sessions.
+export const GLOBAL_TARGETS = [
+  { tool: "GitHub Copilot CLI (all your repos)", rel: path.join(".copilot", "copilot-instructions.md"), label: "~/.copilot/copilot-instructions.md", header: "# Copilot CLI instructions\n" },
+];
+
+// Resolve the active target set and the containment root for the chosen mode.
+function resolveTargets(dir, { global = false, home = os.homedir() } = {}) {
+  if (global) {
+    return { root: path.join(home, ".copilot"), items: GLOBAL_TARGETS.map(t => ({ tool: t.tool, abs: path.join(home, t.rel), label: t.label, header: t.header })) };
+  }
+  const root = path.resolve(dir);
+  return { root, items: TARGETS.map(t => ({ tool: t.tool, abs: path.join(root, t.file), label: t.file, header: t.header })) };
+}
 
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // escape regex metacharacters
 const BLOCK_RE = new RegExp(escapeRe(START) + "[\\s\\S]*?" + escapeRe(END), "g");
@@ -121,51 +140,52 @@ function statusOf(absPath) {
   return bodies[0] === BODY ? "ok" : "outdated";
 }
 
-function install(dir, { dryRun = false } = {}) {
-  const root = path.resolve(dir);
+function install(dir, { dryRun = false, global = false, home } = {}) {
+  const { root, items } = resolveTargets(dir, { global, home });
   fs.mkdirSync(root, { recursive: true });
-  console.log(dryRun ? "Token Diet -> DRY RUN (no files written)\n" : "Token Diet -> installing token-efficiency rules\n");
-  for (const t of TARGETS) {
-    const abs = path.join(root, t.file);
+  console.log(dryRun ? "Token Diet -> DRY RUN (no files written)\n" : `Token Diet -> installing token-efficiency rules${global ? " (global: all your repos)" : ""}\n`);
+  for (const t of items) {
+    const abs = t.abs;
     try {
       if (fs.existsSync(abs) && fs.statSync(abs).isDirectory()) {
-        console.log(`  skipped (path is a directory)  ${t.file}`);
+        console.log(`  skipped (path is a directory)  ${t.label}`);
         continue;
       }
       const existed = fs.existsSync(abs);
       const out = render(existed ? fs.readFileSync(abs, "utf8") : "", t.header);
-      if (dryRun) { console.log(`  would ${existed ? "update" : "create"}  ${t.file}`); continue; }
+      if (dryRun) { console.log(`  would ${existed ? "update" : "create"}  ${t.label}`); continue; }
       fs.mkdirSync(path.dirname(abs), { recursive: true });
       assertSafeWriteTarget(root, abs);
       fs.writeFileSync(abs, out);
-      console.log(`  ${existed ? "updated" : "created"}  ${t.file.padEnd(34)} (${t.tool})`);
+      console.log(`  ${existed ? "updated" : "created"}  ${t.label.padEnd(34)} (${t.tool})`);
     } catch (e) {
-      console.log(`  skipped (${e.code || e.message})  ${t.file}`); // one bad target never aborts the rest
+      console.log(`  skipped (${e.code || e.message})  ${t.label}`); // one bad target never aborts the rest
     }
   }
   if (dryRun) { console.log("\nDry run only. Re-run without --dry-run to apply."); return; }
-  console.log("\nDone. Every agent in this repo now starts on a token diet.");
+  console.log(global ? "\nDone. Copilot CLI now starts every repo on a token diet." : "\nDone. Every agent in this repo now starts on a token diet.");
   console.log("Run with --check in CI to keep it that way.");
 }
 
-function check(dir) {
+function check(dir, { global = false, home } = {}) {
+  const { items } = resolveTargets(dir, { global, home });
   let bad = 0;
   console.log("Token Diet -> status\n");
-  for (const t of TARGETS) {
-    const st = statusOf(path.join(path.resolve(dir), t.file));
+  for (const t of items) {
+    const st = statusOf(t.abs);
     if (st !== "ok") bad++;
     const mark = st === "ok" ? "ok      " : st === "outdated" ? "OUTDATED" : "MISSING ";
-    console.log(`  ${mark}  ${t.file}`);
+    console.log(`  ${mark}  ${t.label}`);
   }
   if (bad) { console.log(`\n${bad} file(s) need 'token-diet'. Run it to fix.`); process.exitCode = 1; }
   else console.log("\nAll targets present and current.");
 }
 
-function remove(dir) {
-  const root = path.resolve(dir);
+function remove(dir, { global = false, home } = {}) {
+  const { root, items } = resolveTargets(dir, { global, home });
   console.log("Token Diet -> removing managed blocks\n");
-  for (const t of TARGETS) {
-    const abs = path.join(root, t.file);
+  for (const t of items) {
+    const abs = t.abs;
     if (!fs.existsSync(abs)) continue;
     try {
       if (fs.statSync(abs).isDirectory()) continue;
@@ -176,20 +196,22 @@ function remove(dir) {
       const headerTrim = (t.header || "").trim();
       if (cleaned.trim() === "" || cleaned.trim() === headerTrim) {
         fs.rmSync(abs);
-        console.log(`  removed file  ${t.file}`);
+        console.log(`  removed file  ${t.label}`);
       } else {
         fs.writeFileSync(abs, cleaned + "\n");
-        console.log(`  cleaned       ${t.file}`);
+        console.log(`  cleaned       ${t.label}`);
       }
     } catch (e) {
-      console.log(`  skipped (${e.code || e.message})  ${t.file}`);
+      console.log(`  skipped (${e.code || e.message})  ${t.label}`);
     }
   }
 }
 
 function list() {
-  console.log("Token Diet targets:\n");
+  console.log("Token Diet targets (per repo):\n");
   for (const t of TARGETS) console.log(`  ${t.file.padEnd(34)} ${t.tool}`);
+  console.log("\nGlobal target (--global), applies to every repo:\n");
+  for (const t of GLOBAL_TARGETS) console.log(`  ${t.label.padEnd(34)} ${t.tool}`);
 }
 
 function main(argv) {
@@ -197,10 +219,11 @@ function main(argv) {
   const di = args.indexOf("--dir");
   const dir = di >= 0 ? args[di + 1] : process.cwd();
   if (di >= 0 && !dir) { console.error("--dir needs a path"); process.exit(2); }
+  const global = args.includes("--global");
   if (args.includes("--list")) return list();
-  if (args.includes("--check")) return check(dir);
-  if (args.includes("--remove")) return remove(dir);
-  return install(dir, { dryRun: args.includes("--dry-run") });
+  if (args.includes("--check")) return check(dir, { global });
+  if (args.includes("--remove")) return remove(dir, { global });
+  return install(dir, { dryRun: args.includes("--dry-run"), global });
 }
 
 // run only when invoked directly, so tests can import the helpers
@@ -209,4 +232,4 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   main(process.argv);
 }
 
-export { install, check, remove, getBlockBody, getBlockBodies, stripBlocks, render, statusOf, assertSafeWriteTarget, START, END };
+export { install, check, remove, getBlockBody, getBlockBodies, stripBlocks, render, statusOf, assertSafeWriteTarget, resolveTargets, START, END };

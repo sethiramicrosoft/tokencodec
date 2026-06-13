@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { install, remove, render, stripBlocks, getBlockBody, statusOf, BODY, TARGETS, START, END } from "./install.mjs";
+import { install, check, remove, render, stripBlocks, getBlockBody, statusOf, resolveTargets, BODY, TARGETS, GLOBAL_TARGETS, START, END } from "./install.mjs";
 
 let pass = 0, fail = 0;
 const ok = (cond, msg) => { if (cond) { pass++; } else { fail++; console.log("  FAIL:", msg); } };
@@ -60,6 +60,25 @@ const sample = "line A\n\n" + `${START}\nx\n${END}` + "\nline B\n";
 const r = render(sample, "# H\n");
 ok(r.includes("line A") && r.includes("line B"), "render preserves text around block");
 ok(countBlocks(r) === 1, "render yields one block");
+
+// 7b. --global mode writes ~/.copilot/copilot-instructions.md (using a fake home)
+const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), "tdhome-"));
+const gFile = path.join(fakeHome, ".copilot", "copilot-instructions.md");
+install(tmp, { global: true, home: fakeHome });
+ok(fs.existsSync(gFile), "global install creates ~/.copilot/copilot-instructions.md");
+ok(getBlockBody(fs.readFileSync(gFile, "utf8")) === BODY, "global file has the managed block");
+ok(statusOf(gFile) === "ok", "global target reports ok");
+const gBefore = fs.readFileSync(gFile, "utf8");
+install(tmp, { global: true, home: fakeHome });
+ok(fs.readFileSync(gFile, "utf8") === gBefore, "global install is idempotent");
+// preserves a user's existing global instructions
+fs.writeFileSync(gFile, "# My global rules\n\n- Always use UK spelling.\n");
+install(tmp, { global: true, home: fakeHome });
+ok(fs.readFileSync(gFile, "utf8").includes("UK spelling"), "global install preserves existing user content");
+remove(tmp, { global: true, home: fakeHome });
+ok(fs.readFileSync(gFile, "utf8").includes("UK spelling") && getBlockBody(fs.readFileSync(gFile, "utf8")) === null, "global remove keeps user content, strips block");
+ok(GLOBAL_TARGETS.length >= 1 && resolveTargets(tmp, { global: true, home: fakeHome }).items[0].abs === gFile, "resolveTargets maps global to the home path");
+fs.rmSync(fakeHome, { recursive: true, force: true });
 
 // 8. malformed block (START without END) is repaired, not duplicated (qa-saboteur)
 install(tmp);

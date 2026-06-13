@@ -177,6 +177,24 @@ You'll see it create the rule files your AI already reads (`AGENTS.md`,
 before - it's now cheaper. Preview first with `--dry-run`; undo anytime with
 `--remove`.
 
+### Using GitHub Copilot CLI? Install it once for every repo
+
+Copilot CLI reads instructions from `~/.copilot/copilot-instructions.md` for
+**every** session, in any folder. Install the diet there once and you never think
+about it again:
+
+```bash
+node /path/to/token-diet/install.mjs --global   # writes ~/.copilot/copilot-instructions.md
+node /path/to/token-diet/install.mjs --global --dry-run   # preview first
+node /path/to/token-diet/install.mjs --global --remove    # undo
+```
+
+From then on, every Copilot CLI session starts on a token diet: it searches
+instead of reading whole files, sends small diffs, trims tool output, queries data
+instead of pasting it, and keeps its history compact. (The per-repo install above
+also covers Copilot via `AGENTS.md` and `.github/copilot-instructions.md` - use
+`--global` when you want it everywhere by default.)
+
 ## Step 3 - Shrink any prompt in your browser
 
 Works for everyone, coder or not. From inside the `token-diet` folder:
@@ -220,6 +238,7 @@ loss. It's not a lossy summary. It's the same information, written compactly.
 | Command | What it does |
 |---|---|
 | `node install.mjs` | Add the money-saving rules to this project |
+| `node install.mjs --global` | Install for GitHub Copilot CLI across ALL your repos (`~/.copilot/copilot-instructions.md`) |
 | `node install.mjs --dry-run` | Show what would change, write nothing |
 | `node install.mjs --check` | Exit code 1 if anything is missing/outdated - drop into CI |
 | `node install.mjs --remove` | Cleanly remove everything it added |
@@ -227,6 +246,8 @@ loss. It's not a lossy summary. It's the same information, written compactly.
 | `node install.mjs --dir <path>` | Operate on another folder |
 | `node serve.mjs` | Open the in-browser optimizer |
 | `npm test` | Run the full test suite |
+
+(`--check`, `--remove` and `--dry-run` all accept `--global` too.)
 
 **For teams / orgs:** commit the generated files, then add `node install.mjs --check`
 to CI. Every repo stays on the diet, and a drifted or tampered rules block fails
