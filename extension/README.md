@@ -1,9 +1,10 @@
 # TokenCodec - browser extension
 
-Adds a **Shrink prompt** button inside ChatGPT, Claude and Gemini. Click it and
-your prompt is rewritten smaller - pasted JSON/NDJSON data is re-encoded into a
-compact lossless table and filler is stripped - before you ever hit send. Nothing
-leaves your browser.
+Adds two buttons inside ChatGPT, Claude and Gemini. **Shrink prompt** rewrites your
+prompt smaller - pasted JSON/NDJSON data is re-encoded into a compact lossless table
+and filler is stripped - before you ever hit send. **Compact reply** adds a one-line
+rule so the model answers tabular data as a compact `@T1` table, which costs fewer
+output tokens. Nothing leaves your browser.
 
 ## How it works
 
@@ -29,6 +30,15 @@ browser to inject it only on `chatgpt.com`, `chat.openai.com`, `claude.ai` and
    textareas it calls the native value setter and dispatches a real `input` event; for
    rich editors it selects the contents and uses `execCommand("insertText")`, which keeps
    the editor's internal model in sync. A toast then reports the approximate tokens saved.
+
+**Saving output tokens (the second button).** A raw chat has no system-prompt field, so
+the only honest channel to the model is the message itself. **Compact reply** appends a
+short rule (`@T1` format spec) to your prompt box - in the same prompt-box-only way,
+never touching the page or your account - so tabular answers come back as a compact
+table instead of verbose JSON. To read that compact reply, paste it into the hosted
+page's *"Shrink the reply too"* decoder (or use the middleware's `decodeResponse`). It is
+worth a few input tokens only when you expect a list or table back; for prose the rule
+tells the model to answer normally.
 
 Nothing is auto-sent - you review the shrunk prompt in the box and press send yourself.
 
@@ -56,6 +66,8 @@ Nothing is auto-sent - you review the shrunk prompt in the box and press send yo
 - Strips filler phrases.
 - Shows roughly how many tokens you saved, and flags when you'd be better off
   asking the model to query the data instead of pasting it.
+- **Compact reply** adds a one-line `@T1` rule to your prompt so tabular answers
+  come back smaller (fewer output tokens); decode that reply on the hosted page.
 
 ## Notes & limits (honest)
 

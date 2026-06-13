@@ -105,6 +105,12 @@ function sampleRecords() {
     ok(eq(tableDecode(extTbl), recs), "extension: shrink is lossless (decodes to original records)");
     ok(await extPage.locator('[role="status"]').first().isVisible(), "extension: savings toast shown");
 
+    // output lever: "Compact reply" appends the reply-saver instruction to the prompt box
+    await extPage.locator("button", { hasText: "Compact reply" }).click();
+    await extPage.waitForTimeout(100);
+    const extWithHint = await extPage.inputValue("#t");
+    ok(extWithHint.includes("@T1(col:type") && /Reply rule:/.test(extWithHint), "extension: 'Compact reply' adds the reply-saver instruction to the prompt");
+
     // ---------- C. Output decode (the reply round-trip, for non-technical web users) ----------
     const expectReply = [
       { name: "Riley Brooks", score: 95, remote: true },

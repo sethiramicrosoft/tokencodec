@@ -368,10 +368,11 @@ no lossless win for free-form prose - this helps when the answer is uniform reco
 
 ## Browser extension (ChatGPT / Claude / Gemini)
 
-A tiny, fully offline add-on that puts a **Shrink prompt** button next to the message
-box on `chatgpt.com`, `chat.openai.com`, `claude.ai` and `gemini.google.com`. It runs
-the exact same lossless codec as everything else here, just inside the page - so you can
-shrink a data-heavy prompt in one click without leaving the chat.
+A tiny, fully offline add-on that puts two buttons next to the message box on
+`chatgpt.com`, `chat.openai.com`, `claude.ai` and `gemini.google.com`: **Shrink prompt**
+(input) and **Compact reply** (output). It runs the exact same lossless codec as
+everything else here, just inside the page - so you can trim a data-heavy prompt, or ask
+for a cheaper reply, in one click without leaving the chat.
 
 ### How it works
 
@@ -397,6 +398,14 @@ access, no network call - the codec is bundled in.
 
 You stay in control: nothing is sent automatically. You click Shrink, see the smaller
 prompt sitting in the box, and press send yourself.
+
+**Output tokens too.** The second button, **Compact reply**, appends a short one-line
+rule to your prompt so the model returns tabular answers as a compact `@T1` table
+instead of verbose JSON - fewer output tokens, which cost 2-8x input. It stays inside
+the prompt box (a raw chat has no system-prompt field), so the privacy promise holds; to
+read the compact reply, paste it into the hosted page's *"Shrink the reply too"* decoder.
+Worth a few input tokens when you expect a list or table; for prose the rule says answer
+normally.
 
 ### Install (about 30 seconds, no store needed)
 
@@ -531,11 +540,12 @@ What's covered, end to end:
 - **E2E node** (16 checks): the committed `web/index.html` and `extension/content.js`
   are in sync with `engine.mjs` (no drift), `serve.mjs` blocks path traversal, and the
   three proofs emit the exact numbers this README cites.
-- **E2E browser** (18 checks): the web tool's displayed token counts equal a real
+- **E2E browser** (19 checks): the web tool's displayed token counts equal a real
   tokenizer, the % and $ figures are arithmetically correct, the output decodes back to
   the original data (lossless), the model switch recomputes cost, copy confirms, the
-  "Shrink the reply too" panel expands a compact `@T1` reply losslessly, and the
-  extension shrinks a real prompt box - all with zero console errors.
+  "Shrink the reply too" panel expands a compact `@T1` reply losslessly, the extension
+  shrinks a real prompt box and its "Compact reply" button adds the `@T1` rule - all with
+  zero console errors.
 
 ## License
 

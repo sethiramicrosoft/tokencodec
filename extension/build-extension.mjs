@@ -41,16 +41,23 @@ const ui = `
     }
   }
 
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.textContent = "\\u{1F343} Shrink prompt";
+  function mkButton(label, bottomPx, bg) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    Object.assign(b.style, {
+      position: "fixed", right: "18px", bottom: bottomPx, zIndex: 2147483647,
+      padding: "8px 12px", borderRadius: "8px", border: "none", background: bg,
+      color: "#fff", font: "600 13px system-ui, sans-serif", cursor: "pointer",
+      boxShadow: "0 2px 10px rgba(0,0,0,.35)"
+    });
+    return b;
+  }
+
+  const btn = mkButton("\\u{1F343} Shrink prompt", "96px", "#1452d9");
   btn.setAttribute("aria-label", "Shrink the current prompt with TokenCodec");
-  Object.assign(btn.style, {
-    position: "fixed", right: "18px", bottom: "96px", zIndex: 2147483647,
-    padding: "8px 12px", borderRadius: "8px", border: "none", background: "#1452d9",
-    color: "#fff", font: "600 13px system-ui, sans-serif", cursor: "pointer",
-    boxShadow: "0 2px 10px rgba(0,0,0,.35)"
-  });
+  const replyBtn = mkButton("Compact reply", "56px", "#0b7a52");
+  replyBtn.setAttribute("aria-label", "Ask the model to reply in a compact @T1 table to save output tokens");
 
   const toast = document.createElement("div");
   toast.setAttribute("role", "status");
@@ -62,6 +69,7 @@ const ui = `
   });
   function show(msg) { toast.textContent = msg; toast.style.display = "block"; clearTimeout(show._t); show._t = setTimeout(() => (toast.style.display = "none"), 7000); }
 
+  // INPUT side: re-encode pasted data + strip filler.
   btn.addEventListener("click", () => {
     const el = getEditable();
     const text = readText(el);
@@ -75,9 +83,24 @@ const ui = `
     show("Shrunk ~" + pct + "% (about " + (before - after) + " fewer tokens)." + (result.flags.length ? " Tip: " + result.flags[0].message : ""));
   });
 
+  // OUTPUT side: append a one-line rule so the model answers tabular data as a
+  // compact @T1 table (fewer output tokens). Stays entirely inside your prompt box;
+  // decode the reply on the hosted page or with the middleware.
+  const REPLY_HINT = "Reply rule: when your answer is a list of items that share the same fields, return a compact TokenCodec @T1 table, not JSON - a header line @T1(col:type,...) with type s=text i=int f=float b=bool, then one comma-separated row per item, text in double quotes, an empty value as \\\\N. Use normal prose otherwise.";
+  replyBtn.addEventListener("click", () => {
+    const el = getEditable();
+    if (!el) { show("Click into the prompt box first, then press Compact reply."); return; }
+    const text = readText(el);
+    if (text && text.indexOf("@T1(col:type") !== -1) { show("The compact-reply rule is already in your prompt."); return; }
+    const next = (text && text.trim()) ? text.replace(/\\s*$/, "") + "\\n\\n" + REPLY_HINT : REPLY_HINT;
+    writeText(el, next);
+    show("Added a reply-saver: tabular answers come back as a compact @T1 table (cheaper output). Paste the reply into the TokenCodec page to read it. Worth it when you expect a list or table.");
+  });
+
   function mount() {
     if (!document.body) return;
     if (!btn.isConnected) document.body.appendChild(btn);
+    if (!replyBtn.isConnected) document.body.appendChild(replyBtn);
     if (!toast.isConnected) document.body.appendChild(toast);
   }
   mount();
