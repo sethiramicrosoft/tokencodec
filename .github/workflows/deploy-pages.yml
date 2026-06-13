@@ -1,0 +1,40 @@
+# Deploys the in-browser optimizer (the web/ folder) to GitHub Pages.
+#
+# This only does something once BOTH are true:
+#   1. the repository is PUBLIC (GitHub Pages is free only on public repos), and
+#   2. Settings -> Pages -> Build and deployment -> Source is set to "GitHub Actions".
+#
+# Until then it stays inert (it only runs when you trigger it from the Actions tab).
+# After that, your optimizer is live at: https://<your-username>.github.io/token-diet/
+name: Deploy web optimizer to GitHub Pages
+
+on:
+  workflow_dispatch: {}
+  # Uncomment to auto-deploy on every change to the web tool (after Pages is enabled):
+  # push:
+  #   branches: [main]
+  #   paths: ["web/**", "engine.mjs"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./web
+      - id: deployment
+        uses: actions/deploy-pages@v4

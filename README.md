@@ -93,27 +93,40 @@ Straight talk beats overselling:
   researchers and execs get real value from the optimizer and the
   "query-don't-paste" idea — but today that means running a local page or copying
   prompts by hand. Most non-technical users won't do that yet.
-- **Not addressed yet (stated, not pretended):**
-  - Mainstream ChatGPT / Claude / Gemini *web and app* users — no one-click path in
-    their interface yet.
-  - Tokens burned by **images, audio, PDFs, web pages and RAG retrieval** — the
-    shrinker only compresses flat tabular JSON; prose and binaries are out of scope.
-  - **Production / runtime** spend — if your *app* (not your coding session) burns
-    tokens serving users, the installer doesn't touch that; you'd import the engine
-    into your backend.
+- **Now covered (new):**
+  - Mainstream ChatGPT / Claude / Gemini users — the **browser extension** adds a
+    one-click *Shrink* button right inside the prompt box.
+  - **Production / runtime** spend — the **API-side compressor** (`middleware/`)
+    shrinks prompts in your backend before they're billed.
+  - **Log / export data** — the engine now also re-encodes **NDJSON / JSON-lines**.
+- **Still not addressed (stated, not pretended):**
+  - Tokens burned by **images, audio, PDFs and RAG retrieval** — the shrinker only
+    compresses flat tabular JSON/NDJSON; prose and binaries are out of scope.
+  - AI inside other surfaces (Office, Notion, Slack, IDE side-panels) — no
+    integration yet.
 
 "I burnt billions of tokens" means one of two different things. If it was your
 **coding agent** while building, the installer is for you. If it's your **app at
-runtime**, you wire the engine into your backend — same ideas, different place.
+runtime**, use the `middleware/` compressor — same ideas, different place.
 
-## Roadmap to reach everyone
+## What's in the box
 
-1. **Hosted, zero-install page** (e.g. GitHub Pages) so anyone can use the optimizer
-   from a URL on any device — no Node, no clone.
-2. **Browser extension** that shrinks your prompt right inside the ChatGPT / Claude /
-   Gemini box, automatically.
-3. **More formats:** CSV, NDJSON, Markdown tables, and key-repetitive nested JSON.
-4. **API-side compressor** middleware for production apps that burn tokens at runtime.
+| Piece | Who it's for | Where |
+|---|---|---|
+| **Rules installer** | Anyone using an AI coding agent | `install.mjs` |
+| **Lossless engine** (JSON + NDJSON → table) | Importable anywhere | `engine.mjs` |
+| **In-browser optimizer** | Anyone, no coding | `web/` (run `node serve.mjs`) |
+| **Browser extension** | ChatGPT / Claude / Gemini users | `extension/` |
+| **API-side compressor** | Production apps burning tokens at runtime | `middleware/` |
+| **Reproducible proofs** | Skeptics & researchers | `proofs/` |
+
+### Going fully public (the one switch I left for you)
+
+A free, zero-install hosted page needs the repo to be **public** (GitHub Pages is
+free only on public repos). I didn't flip that for you — it's your call. When you're
+ready: make the repo public, then **Settings → Pages → Source: GitHub Actions**, and
+run the included **Deploy web optimizer to GitHub Pages** workflow. Your optimizer
+goes live at `https://<your-username>.github.io/token-diet/`.
 
 ---
 
@@ -237,6 +250,32 @@ const back = tableDecode(wire);      // structurally identical records
 `tableEncode` returns **`null`** whenever it cannot guarantee a perfect round-trip.
 Always handle that by keeping your original JSON — which is exactly what
 `optimize()` does internally. Never assume conversion happened.
+
+## Shrink prompts in production (runtime compressor)
+
+If your *app* burns tokens serving users, compress messages right before you send
+them. `middleware/compress.mjs` is dependency-free:
+
+```js
+import { compressMessages } from "./middleware/compress.mjs";
+
+const { messages, saved } = compressMessages(rawMessages, {
+  // optional: pass your real tokenizer for exact counts; defaults to an estimate
+  // tokenizer: s => encode(s).length,
+  skipRoles: ["system"], // leave certain roles untouched if you like
+});
+// `messages` is your same conversation, smaller. Send it as usual:
+const reply = await openai.chat.completions.create({ model, messages });
+```
+
+It re-encodes embedded JSON/NDJSON losslessly and strips filler, so the model sees
+the same facts for fewer tokens. Image/tool parts pass through untouched.
+
+## Browser extension (ChatGPT / Claude / Gemini)
+
+`npm run build:ext`, then load the `extension/` folder via `chrome://extensions`
+(Developer mode → Load unpacked). A **Shrink prompt** button appears in the prompt
+box. See `extension/README.md` for details.
 
 ---
 
