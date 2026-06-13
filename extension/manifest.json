@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TokenCodec - prompt shrinker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Shrink your prompt before you send it. Re-encodes pasted JSON/NDJSON data losslessly and strips filler, right inside ChatGPT, Claude and Gemini.",
   "permissions": ["clipboardWrite"],
   "content_scripts": [

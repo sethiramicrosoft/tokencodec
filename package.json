@@ -1,6 +1,6 @@
 {
   "name": "tokencodec",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "The lossless prompt and data codec for LLMs: re-encode prompts to a fraction of the tokens and decode back byte-for-byte. One command makes every AI coding agent token-efficient.",
   "type": "module",
   "bin": {
