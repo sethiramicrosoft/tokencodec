@@ -144,23 +144,6 @@ The in-browser optimizer is published (free GitHub Pages) at
 **https://sethiramicrosoft.github.io/tokencodec/** - zero install, works on any
 device, nothing uploaded. It auto-redeploys whenever the web tool changes.
 
-### What it looks like
-
-These come straight from a test run that loads the **real unpacked extension** into
-Chromium and lets its content script act on a chat composer (`npm run screenshots`) -
-the same `content.js` that runs on chatgpt.com, claude.ai and gemini.google.com. They
-are the genuine extension, not mockups. The live chat sites need a login and block
-automation, so the shots use a local chat-style composer; the floating buttons, the
-in-place re-encode and the toast are all the actual extension.
-
-**Before - you paste bloated JSON into the chat box. The extension adds two buttons, bottom-right:**
-
-![The TokenCodec browser extension over a chat composer: a pasted JSON array of eight orders fills the message box, with floating "Shrink prompt" and "Compact reply" buttons in the bottom-right corner.](docs/screenshots/extension-before.png)
-
-**After - one click on "Shrink prompt" re-encodes it in place to a compact `@T1` table, and a toast shows what you saved:**
-
-![After clicking Shrink prompt: the same eight orders are re-encoded in the message box as a compact @T1 table - the header @T1(id:i,customer:s,region:s,total:f,paid:b) and eight comma-separated rows - with a toast reading "Shrunk ~64% (about 152 fewer tokens)".](docs/screenshots/extension-after.png)
-
 ---
 
 # Part 1 - The beginner path
@@ -413,6 +396,23 @@ A tiny, fully offline add-on that puts two buttons next to the message box on
 (input) and **Compact reply** (output). It runs the exact same lossless codec as
 everything else here, just inside the page - so you can trim a data-heavy prompt, or ask
 for a cheaper reply, in one click without leaving the chat.
+
+### What it looks like
+
+These come straight from a test run that loads the **real unpacked extension** into
+Chromium and lets its content script act on a chat composer (`npm run screenshots`) -
+the same `content.js` that runs on chatgpt.com, claude.ai and gemini.google.com. They
+are the genuine extension, not mockups. The live chat sites need a login and block
+automation, so the shots use a local chat-style composer; the floating buttons, the
+in-place re-encode and the toast are all the actual extension.
+
+**Before - you paste bloated JSON into the chat box. The extension adds two buttons, bottom-right:**
+
+![The TokenCodec browser extension over a chat composer: a pasted JSON array of eight orders fills the message box, with floating "Shrink prompt" and "Compact reply" buttons in the bottom-right corner.](docs/screenshots/extension-before.png)
+
+**After - one click on "Shrink prompt" re-encodes it in place to a compact `@T1` table, and a toast shows what you saved:**
+
+![After clicking Shrink prompt: the same eight orders are re-encoded in the message box as a compact @T1 table - the header @T1(id:i,customer:s,region:s,total:f,paid:b) and eight comma-separated rows - with a toast reading "Shrunk ~64% (about 152 fewer tokens)".](docs/screenshots/extension-after.png)
 
 ### How it works
 
