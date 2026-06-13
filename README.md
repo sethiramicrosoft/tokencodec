@@ -2,6 +2,8 @@
 
 **If an AI reads your words or data, you pay for every one. Token Diet cuts the waste.**
 
+**▶ Try it live, no install:** https://sethiramicrosoft.github.io/token-diet/
+
 AI tools charge by the *token* — a token is a small chunk of text, about ¾ of a
 word. Every file your AI re-reads, every spreadsheet you paste, every long chat
 that resends its whole history: you pay for all of it, every time. On a big
@@ -120,13 +122,11 @@ runtime**, use the `middleware/` compressor — same ideas, different place.
 | **API-side compressor** | Production apps burning tokens at runtime | `middleware/` |
 | **Reproducible proofs** | Skeptics & researchers | `proofs/` |
 
-### Going fully public (the one switch I left for you)
+### The hosted page is live
 
-A free, zero-install hosted page needs the repo to be **public** (GitHub Pages is
-free only on public repos). I didn't flip that for you — it's your call. When you're
-ready: make the repo public, then **Settings → Pages → Source: GitHub Actions**, and
-run the included **Deploy web optimizer to GitHub Pages** workflow. Your optimizer
-goes live at `https://<your-username>.github.io/token-diet/`.
+The in-browser optimizer is published (free GitHub Pages) at
+**https://sethiramicrosoft.github.io/token-diet/** — zero install, works on any
+device, nothing uploaded. It auto-redeploys whenever the web tool changes.
 
 ---
 

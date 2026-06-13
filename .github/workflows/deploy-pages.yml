@@ -10,10 +10,9 @@ name: Deploy web optimizer to GitHub Pages
 
 on:
   workflow_dispatch: {}
-  # Uncomment to auto-deploy on every change to the web tool (after Pages is enabled):
-  # push:
-  #   branches: [main]
-  #   paths: ["web/**", "engine.mjs"]
+  push:
+    branches: [main]
+    paths: ["web/**", "engine.mjs", "build-web.mjs", ".github/workflows/deploy-pages.yml"]
 
 permissions:
   contents: read
