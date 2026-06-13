@@ -5,4 +5,8 @@ benchmark/prompt_json.txt
 benchmark/prompt_table.txt
 benchmark/ground_truth.json
 benchmark/meta.json
+benchmark/prompt_out_json.txt
+benchmark/prompt_out_table.txt
+benchmark/out_truth.json
 benchmark/*.answer.json
+benchmark/*.reply.txt

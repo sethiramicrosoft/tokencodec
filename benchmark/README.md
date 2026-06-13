@@ -42,3 +42,21 @@ and decode back to JSON before the model reads it.
 
 See `RESULTS.md` for the measured numbers, the exact models tested, and an honest
 read of what they mean (including the limits of this test).
+
+## Output-side benchmark
+
+`output_benchmark.mjs` tests the reverse direction: when the model *returns*
+structured data, can it emit the compact `@T1` table correctly, and does that save
+output tokens?
+
+```bash
+node benchmark/output_benchmark.mjs generate
+# send prompt_out_json.txt and prompt_out_table.txt to your model, save each reply
+node benchmark/output_benchmark.mjs score json  benchmark/json.reply.txt
+node benchmark/output_benchmark.mjs score table benchmark/table.reply.txt
+```
+
+It reports output-token count and whether the returned data is correct (the table
+reply is decoded with `tableDecode`, so correctness means it round-tripped). Measured
+result is in `RESULTS.md`: ~32% fewer output tokens, no accuracy loss versus JSON.
+

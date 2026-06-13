@@ -50,6 +50,14 @@ needs the whole file or dataset, use it.
 9. Keep a stable prefix. Hold system/context constant so the provider can cache
    it; do not reshuffle it on each call.
 
+## Output (what you write back, not just what you read - output tokens cost 2-8x input)
+10. Be brief. No preamble, no restating the question, no recap of what you just did
+    unless asked. Answer in the fewest tokens that fully answer.
+11. When you emit structured data, return a compact table (CSV or header-once), not
+    pretty-printed JSON.
+12. Use the lowest reasoning effort that solves the task, and do not narrate your
+    thinking unless asked.
+
 ## One-line self-check
 Before sending: am I pasting anything the model could fetch, grep, or compute
 itself? If yes, do that instead.`;

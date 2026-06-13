@@ -402,6 +402,26 @@ only slipped on raw multi-row arithmetic (a 30-number sum) - which you should
 offload from the model anyway. Reproduce it yourself with `benchmark/benchmark.mjs`;
 honest write-up and caveats in `benchmark/RESULTS.md`.
 
+## Saving output tokens too
+
+Output tokens cost 2-8x more than input per token, so they are worth cutting - but
+output cannot be losslessly "compressed" the way redundant input data can. You save
+it two honest ways, and TokenCodec does both:
+
+- **The installed rules discipline output**, not just input: small diffs instead of
+  reprinting whole files (the biggest output cost in agentic coding), no preamble or
+  recap, the lowest reasoning effort that solves the task, and compact structured
+  results instead of pretty JSON.
+- **The codec works in reverse:** ask the model to *return* an `@T1` table and decode
+  the reply with `tableDecode`. Measured (`benchmark/output_benchmark.mjs`): both
+  GPT-5.4-mini and Claude Haiku 4.5 produced valid, losslessly-decodable `@T1` and
+  used **~32% fewer output tokens** than returning JSON, with no loss of accuracy
+  versus JSON. Caveat: tested on a flat schema; measure before relying on it for
+  nested or irregular output.
+
+There is no free lunch for general prose output - you shorten that by asking for
+less, with the usual tradeoffs.
+
 ## Safety
 
 - **Idempotent:** running it twice changes nothing the second time.

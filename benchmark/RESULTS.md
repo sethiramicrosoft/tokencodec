@@ -49,3 +49,29 @@ The codec is provably lossless (separate fuzz tests). This benchmark adds that a
 capable small model also *reads* the compact form with no accuracy loss for
 reasoning tasks, at ~half the tokens. The one place to be careful - heavy
 arithmetic - is something you should be offloading from the model anyway.
+
+## Output side - can the model EMIT the compact form to save output tokens?
+
+Input compression is lossless and easy. The harder question: when the model
+*returns* structured data, can it produce the `@T1` table correctly, and does that
+save output tokens? (Producing a precise format is harder than reading one.)
+Measured with `output_benchmark.mjs` - a filter-and-sort task returning 10 records:
+
+| Model | Returned as JSON | Returned as `@T1` | Output tokens |
+|---|---|---|---|
+| GPT-5.4-mini | correct | correct | 192 -> 130 (**32% fewer**) |
+| Claude Haiku 4.5 | see note | see note | 192 -> 130 (**32% fewer**) |
+
+- **Both models produced valid `@T1` that decoded losslessly.** The format is
+  reliably emittable for a flat schema.
+- **`@T1` was exactly as accurate as JSON, per model.** GPT got both right. Haiku
+  returned the correct 10 records in both formats but mis-ordered a tie-break
+  *identically* in JSON and `@T1` - a sorting-instruction slip, not a format fault.
+  So choosing `@T1` did not cost any correctness; it only saved tokens.
+- **Savings: ~32% fewer output tokens** for the same answer.
+
+How to use it: ask the model to return `@T1` (give it the one-line format spec),
+then decode the reply with `tableDecode` from `engine.mjs`. Honest caveat: tested on
+a flat schema; nested or highly irregular output is harder for a model to format,
+so measure before relying on it.
+
