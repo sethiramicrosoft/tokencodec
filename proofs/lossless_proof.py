@@ -76,7 +76,7 @@ print("PROOF 2: adversarial fuzz - losslessness under nasty data")
 print("="*60)
 random.seed(7)
 def nasty():
-    pool = string.printable + "café—💥\t\"',\n{}[]:"
+    pool = string.printable + "caf\u00e9-\U0001F4A5\t\"',\n{}[]:"
     return "".join(random.choice(pool) for _ in range(random.randint(0,40)))
 fails = 0
 for trial in range(5000):

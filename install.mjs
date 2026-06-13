@@ -18,7 +18,7 @@ export const VERSION = "1";
 const START = `<!-- TOKEN-DIET:START v${VERSION} (managed by token-diet; edit rules upstream, not here) -->`;
 const END = "<!-- TOKEN-DIET:END -->";
 
-export const BODY = `# Token Diet — read this before doing anything
+export const BODY = `# Token Diet - read this before doing anything
 
 Optimize for tokens. Never trade away correctness to do it. If a step genuinely
 needs the whole file or dataset, use it.

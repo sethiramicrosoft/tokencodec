@@ -1,8 +1,8 @@
-# Token Diet — browser extension
+# Token Diet - browser extension
 
-Adds a **🍃 Shrink prompt** button inside ChatGPT, Claude and Gemini. Click it and
-your prompt is rewritten smaller — pasted JSON/NDJSON data is re-encoded into a
-compact lossless table and filler is stripped — before you ever hit send. Nothing
+Adds a **Shrink prompt** button inside ChatGPT, Claude and Gemini. Click it and
+your prompt is rewritten smaller - pasted JSON/NDJSON data is re-encoded into a
+compact lossless table and filler is stripped - before you ever hit send. Nothing
 leaves your browser.
 
 ## Install (takes 30 seconds, no store needed)
@@ -19,7 +19,7 @@ leaves your browser.
    - **Chrome / Edge / Brave:** go to `chrome://extensions`
    - Turn on **Developer mode** (top-right toggle).
 3. Click **Load unpacked** and select this `extension/` folder.
-4. Open ChatGPT, Claude or Gemini. You'll see the **🍃 Shrink prompt** button at the
+4. Open ChatGPT, Claude or Gemini. You'll see the **Shrink prompt** button at the
    bottom-right. Type or paste your prompt, click it, and watch it shrink.
 
 ## What it does
@@ -42,5 +42,5 @@ leaves your browser.
 
 ## Rebuild after engine changes
 
-`content.js` is generated — never edit it by hand. Change `engine.mjs` (or the UI
+`content.js` is generated - never edit it by hand. Change `engine.mjs` (or the UI
 in `extension/build-extension.mjs`) and run `npm run build:ext` again.

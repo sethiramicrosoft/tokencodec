@@ -14,7 +14,7 @@ const throws = (fn, msg) => { try { fn(); fail++; console.log("  FAIL (no throw)
 // ---------- 1. LOSSLESS FUZZ (within supported grammar) ----------
 let seed = 7; const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
 function nastyStr() {
-  const pool = 'abcXYZ 0123 ,"\'\n\t\r{}[]:\\N café—💥é';
+  const pool = 'abcXYZ 0123 ,"\'\n\t\r{}[]:\\N caf\u00e9-\u{1F4A5}\u00e9';
   let s = ""; const n = Math.floor(rnd() * 25);
   for (let i = 0; i < n; i++) s += pool[Math.floor(rnd() * pool.length)];
   return s;

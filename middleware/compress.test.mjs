@@ -30,7 +30,7 @@ const dataMsg = "Summarize this data:\n" + JSON.stringify(rows, null, 2);
   ok(saved > 0, "reported aggregate savings > 0");
 }
 
-// 3. array-style content (OpenAI/Anthropic parts) — text compressed, non-text untouched
+// 3. array-style content (OpenAI/Anthropic parts) - text compressed, non-text untouched
 {
   const messages = [{ role: "user", content: [
     { type: "text", text: dataMsg },

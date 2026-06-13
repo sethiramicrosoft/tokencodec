@@ -1,4 +1,4 @@
-// Token Diet — API-side prompt compressor.
+// Token Diet - API-side prompt compressor.
 //
 // For production apps that burn tokens at RUNTIME (not just while you code).
 // Drop this in front of your LLM call to shrink prompts before they are billed.
