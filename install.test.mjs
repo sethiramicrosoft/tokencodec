@@ -78,6 +78,14 @@ ok(fs.readFileSync(gFile, "utf8").includes("UK spelling"), "global install prese
 remove(tmp, { global: true, home: fakeHome });
 ok(fs.readFileSync(gFile, "utf8").includes("UK spelling") && getBlockBody(fs.readFileSync(gFile, "utf8")) === null, "global remove keeps user content, strips block");
 ok(GLOBAL_TARGETS.length >= 1 && resolveTargets(tmp, { global: true, home: fakeHome }).items[0].abs === gFile, "resolveTargets maps global to the home path");
+// --global also covers Claude Code, Codex and Gemini at the user level
+install(tmp, { global: true, home: fakeHome });
+ok(fs.existsSync(path.join(fakeHome, ".claude", "CLAUDE.md")), "global install covers Claude Code (~/.claude/CLAUDE.md)");
+ok(fs.existsSync(path.join(fakeHome, ".codex", "AGENTS.md")), "global install covers Codex (~/.codex/AGENTS.md)");
+ok(fs.existsSync(path.join(fakeHome, ".gemini", "GEMINI.md")), "global install covers Gemini (~/.gemini/GEMINI.md)");
+ok(GLOBAL_TARGETS.every(t => !path.isAbsolute(t.rel) && !t.rel.includes("..")), "global target paths stay inside home");
+remove(tmp, { global: true, home: fakeHome });
+ok(!fs.existsSync(path.join(fakeHome, ".claude", "CLAUDE.md")), "global remove deletes our-only Claude file");
 fs.rmSync(fakeHome, { recursive: true, force: true });
 
 // 8. malformed block (START without END) is repaired, not duplicated (qa-saboteur)

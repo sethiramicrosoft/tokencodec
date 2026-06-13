@@ -181,23 +181,31 @@ You'll see it create the rule files your AI already reads (`AGENTS.md`,
 before - it's now cheaper. Preview first with `--dry-run`; undo anytime with
 `--remove`.
 
-### Using GitHub Copilot CLI? Install it once for every repo
+### Copilot CLI, Claude Code, or Codex? Install it once for every repo
 
-Copilot CLI reads instructions from `~/.copilot/copilot-instructions.md` for
-**every** session, in any folder. Install the rules there once and you never think
-about it again:
+These CLI agents each read a user-level instruction file for **every** session, in
+any folder. One `--global` run installs the rules into all of them at once:
+
+| CLI agent | User-level file it reads |
+|---|---|
+| GitHub Copilot CLI | `~/.copilot/copilot-instructions.md` |
+| Claude Code | `~/.claude/CLAUDE.md` |
+| OpenAI Codex CLI | `~/.codex/AGENTS.md` |
+| Gemini CLI | `~/.gemini/GEMINI.md` |
 
 ```bash
-node /path/to/tokencodec/install.mjs --global   # writes ~/.copilot/copilot-instructions.md
-node /path/to/tokencodec/install.mjs --global --dry-run   # preview first
-node /path/to/tokencodec/install.mjs --global --remove    # undo
+node /path/to/tokencodec/install.mjs --global            # install into all of the above
+node /path/to/tokencodec/install.mjs --global --dry-run  # preview first
+node /path/to/tokencodec/install.mjs --global --remove   # undo (removes only our block)
 ```
 
-From then on, every Copilot CLI session runs token-efficient: it searches
+From then on, every session in those agents runs token-efficient: it searches
 instead of reading whole files, sends small diffs, trims tool output, queries data
-instead of pasting it, and keeps its history compact. (The per-repo install above
-also covers Copilot via `AGENTS.md` and `.github/copilot-instructions.md` - use
-`--global` when you want it everywhere by default.)
+instead of pasting it, and keeps its history compact. It only writes a small managed
+block (your existing content in those files is preserved), and a tool you do not use
+just gets an unused file that `--remove` cleans up. The per-repo install above also
+covers all of these via `AGENTS.md`, `CLAUDE.md` and `.github/copilot-instructions.md`
+- use `--global` when you want it everywhere by default.
 
 #### How a text file changes the agent's behavior
 
@@ -225,15 +233,24 @@ or `/env` in Copilot CLI, and remove them with `--global --remove`.
 
 ## Step 3 - Shrink any prompt in your browser
 
-Works for everyone, coder or not. From inside the `tokencodec` folder:
+Easiest way, nothing to install: **just open the hosted page** -
+**https://sethiramicrosoft.github.io/tokencodec/** . Paste a prompt, or click
+**Try a sample prompt**, and watch the token count and the dollar cost drop. It
+runs entirely in your browser; nothing is uploaded.
+
+**Prefer to run it locally?** (offline, air-gapped, or you cloned the repo to hack
+on it.) From inside the `tokencodec` folder:
 
 ```bash
 node serve.mjs
 ```
 
-Open the link it prints (`http://127.0.0.1:8155/web/index.html`). Paste a prompt -
-or click **Try a sample prompt** - and watch the token count and the dollar cost
-drop. Nothing leaves your computer. Press `Ctrl+C` to stop.
+Open the link it prints (`http://127.0.0.1:8155/web/index.html`). Same page, served
+from your own machine. Press `Ctrl+C` to stop.
+
+The two are the *same tool* - the hosted page is the zero-install convenience; the
+local server is for when you want it fully offline or are modifying the code. Both
+run client-side and upload nothing.
 
 ---
 
@@ -266,7 +283,7 @@ loss. It's not a lossy summary. It's the same information, written compactly.
 | Command | What it does |
 |---|---|
 | `node install.mjs` | Add the money-saving rules to this project |
-| `node install.mjs --global` | Install for GitHub Copilot CLI across ALL your repos (`~/.copilot/copilot-instructions.md`) |
+| `node install.mjs --global` | Install for every repo at the user level: Copilot CLI, Claude Code, Codex, Gemini CLI |
 | `node install.mjs --dry-run` | Show what would change, write nothing |
 | `node install.mjs --check` | Exit code 1 if anything is missing/outdated - drop into CI |
 | `node install.mjs --remove` | Cleanly remove everything it added |

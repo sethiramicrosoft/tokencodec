@@ -12,6 +12,8 @@
   h1 { font-size: 1.6rem; margin: 0 0 4px; }
   h2 { font-size: 1.05rem; }
   p.sub { color: #aab2c0; margin: 0 0 20px; }
+  p.tagline { color: #c2c9d6; margin: 0 0 14px; font-size: .95rem; }
+  footer p { margin: 0 0 8px; }
   label { display: block; font-weight: 600; margin: 16px 0 6px; }
   textarea { width: 100%; min-height: 180px; padding: 12px; border-radius: 8px;
     border: 1px solid #3a4150; background: #161922; color: #e7e9ee; font: 13px/1.45 ui-monospace, monospace; resize: vertical; }
@@ -39,6 +41,7 @@
 <main>
   <a class="skip-link" href="#prompt">Skip to prompt</a>
   <h1>TokenCodec</h1>
+  <p class="tagline">The lossless prompt and data codec for LLMs. <a href="https://github.com/sethiramicrosoft/tokencodec" target="_blank" rel="noopener">View source on GitHub</a></p>
   <p class="sub">Paste a prompt. See the tokens you are wasting - tokens are the word-chunks AI models charge for, so fewer tokens means a smaller bill. You get back a shorter version that says exactly the same thing. Everything runs in your browser; nothing is uploaded.</p>
 
   <div id="tokwarn" class="warn" role="alert" hidden><strong>Heads up:</strong> could not load the exact tokenizer (offline?). Showing an approximate count (within about 20-30%).</div>
@@ -102,8 +105,17 @@
   <div class="row"><button id="copy" type="button" class="secondary">Copy optimized prompt</button><span id="copied" role="status" hidden></span></div>
 
   <footer>
-    "Lossless" means the data you get back is identical to what you put in - same values, every time, fully reversible.
-    Token counts use the o200k tokenizer as a close cross-model approximation. Prices are public June 2026 list prices (input tokens) - adjust for your actual tier. Not financial advice.
+    <p><strong>TokenCodec</strong> - the lossless prompt and data codec for LLMs.
+      <a href="https://github.com/sethiramicrosoft/tokencodec" target="_blank" rel="noopener">GitHub repository</a> -
+      <a href="https://github.com/sethiramicrosoft/tokencodec/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a> -
+      built by <a href="https://github.com/sethiramicrosoft" target="_blank" rel="noopener">sethiramicrosoft</a>.</p>
+
+    <p>"Lossless" means the data you get back is identical to what you put in - same values, every time, fully reversible.
+      Token counts use the o200k tokenizer as a close cross-model approximation. Prices are public June 2026 list prices (input tokens); adjust for your actual tier.</p>
+
+    <p><strong>Disclaimer:</strong> this tool runs entirely in your browser and uploads nothing. Token and cost figures are estimates for guidance only, and are not financial advice. The software is provided "as is", without warranty of any kind. Product and model names (GPT, Claude, Gemini, Grok, DeepSeek and others) are trademarks of their respective owners, used here for identification only.</p>
+
+    <p>&copy; 2026 sethiramicrosoft. Released under the MIT License.</p>
   </footer>
 </main>
 

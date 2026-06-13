@@ -6,8 +6,10 @@
 //
 // Usage:
 //   node install.mjs            install/update into this repo
-//   node install.mjs --global   install into ~/.copilot/copilot-instructions.md
-//                               (applies to GitHub Copilot CLI across ALL your repos)
+//   node install.mjs --global   install into the user-level files that CLI agents
+//                               read for EVERY repo: ~/.copilot/copilot-instructions.md
+//                               (Copilot CLI), ~/.claude/CLAUDE.md (Claude Code),
+//                               ~/.codex/AGENTS.md (Codex), ~/.gemini/GEMINI.md (Gemini)
 //   node install.mjs --check    report status; exit 1 if missing/outdated (CI)
 //   node install.mjs --remove   strip the managed block from every target
 //   node install.mjs --list     list target files
@@ -67,16 +69,19 @@ export const TARGETS = [
   { tool: "Cursor (native rules)", file: path.join(".cursor", "rules", "tokencodec.mdc"), header: MDC_FRONTMATTER },
 ];
 
-// Global targets live under the user's home and apply across every repo. The
-// Copilot CLI reads ~/.copilot/copilot-instructions.md for all sessions.
+// Global targets live under the user's home and apply across every repo. Each of
+// these CLIs reads its file for all sessions, so one --global run covers them.
 export const GLOBAL_TARGETS = [
   { tool: "GitHub Copilot CLI (all your repos)", rel: path.join(".copilot", "copilot-instructions.md"), label: "~/.copilot/copilot-instructions.md", header: "# Copilot CLI instructions\n" },
+  { tool: "Claude Code (user memory)", rel: path.join(".claude", "CLAUDE.md"), label: "~/.claude/CLAUDE.md", header: "# CLAUDE.md\n" },
+  { tool: "OpenAI Codex CLI (global)", rel: path.join(".codex", "AGENTS.md"), label: "~/.codex/AGENTS.md", header: "# AGENTS.md\n" },
+  { tool: "Gemini CLI (global)", rel: path.join(".gemini", "GEMINI.md"), label: "~/.gemini/GEMINI.md", header: "# GEMINI.md\n" },
 ];
 
 // Resolve the active target set and the containment root for the chosen mode.
 function resolveTargets(dir, { global = false, home = os.homedir() } = {}) {
   if (global) {
-    return { root: path.join(home, ".copilot"), items: GLOBAL_TARGETS.map(t => ({ tool: t.tool, abs: path.join(home, t.rel), label: t.label, header: t.header })) };
+    return { root: home, items: GLOBAL_TARGETS.map(t => ({ tool: t.tool, abs: path.join(home, t.rel), label: t.label, header: t.header })) };
   }
   const root = path.resolve(dir);
   return { root, items: TARGETS.map(t => ({ tool: t.tool, abs: path.join(root, t.file), label: t.file, header: t.header })) };
