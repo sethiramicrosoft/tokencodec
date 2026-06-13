@@ -1,0 +1,13 @@
+# Keep line endings consistent (LF) in the repository and working tree on every OS,
+# so Windows checkouts don't introduce CRLF churn in diffs.
+* text=auto eol=lf
+
+# Binary assets - never normalize or diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
