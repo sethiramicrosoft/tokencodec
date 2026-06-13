@@ -65,13 +65,26 @@ export async function withCompression(messages, send, opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// OUTPUT side. The above shrinks what you SEND. The below shrinks what the model
-// WRITES BACK (output tokens cost 2-8x input). There is no lossless free lunch
-// for prose, but when the answer is uniform tabular data you can ask for it as a
-// compact @T1 table and decode it back to JSON on receipt - a real round-trip.
+// OUTPUT side. The above shrinks what you SEND. Output is different: the model
+// GENERATES it, so it is not redundant data you can losslessly re-pack - the only
+// way to spend fewer output tokens is to make the model produce fewer. Two honest
+// levers, in order of reliability:
+//   1. ENFORCED (the API obeys it): cap max output tokens, and - the big one on
+//      reasoning models - lower the reasoning/"thinking" budget. Those hidden
+//      reasoning tokens bill at the OUTPUT rate and often dwarf the answer (this is
+//      what is behind complaints about premium models burning tokens). Set
+//      reasoning_effort / thinking.budget_tokens / thinkingBudget on YOUR request
+//      (provider-specific; not wrapped here because it is one line you own).
+//   2. BEST-EFFORT (the model may ignore it): the OUTPUT_FORMAT_HINT below asks for
+//      a compact @T1 table instead of JSON for uniform lists (measured ~32% fewer
+//      output tokens on a tabular task).
+// NOTE: decodeResponse() below saves you NOTHING - it runs after the model has
+// generated and you have been billed. It is plumbing to read a compact reply, not
+// a discount.
 
-// Drop this into your system prompt so the model replies in @T1 for tabular
-// answers. Pair it with decodeResponse() below so your app still gets JSON.
+// Drop this into your system prompt so the model replies in @T1 for tabular answers
+// (best-effort). Pair it with decodeResponse() so your code can read the reply back
+// as JSON - the SAVING is the smaller answer the model wrote, not the decode.
 export const OUTPUT_FORMAT_HINT =
   "When your answer is a list of records that all share the same fields, reply " +
   "with a single TokenCodec @T1 table instead of JSON, to save output tokens. " +

@@ -167,5 +167,29 @@ console.log(`  realistic prompt: ${tok(prompt)} -> ${tok(optimized)} tokens (${p
   ok(eq(JSON.parse(decodeTables(table)), data), "bare table decodes losslessly");
 }
 
+// ---------- 10. decode hardening (fleet TD-2: prompt-injection-reviewer + security-auditor) ----------
+{
+  // __proto__ column name rejected on decode (symmetric with encode); never pollutes
+  throws(() => tableDecode('@T1(__proto__:s)\n"x"'), "decode rejects a __proto__ column name");
+  ok(decodeTables('@T1(__proto__:s)\n"x"') === '@T1(__proto__:s)\n"x"', "decodeTables leaves a __proto__ table untouched (no pollution path)");
+
+  // integer columns stay lossless: non-integers and out-of-safe-range values are refused
+  throws(() => tableDecode("@T1(n:i)\n1.5"), "decode refuses a non-integer in an i column");
+  throws(() => tableDecode("@T1(n:i)\n9007199254740993"), "decode refuses an unsafe-range integer (would silently round)");
+  ok(eq(tableDecode("@T1(n:i)\n42"), [{ n: 42 }]), "decode still accepts a safe integer");
+  ok(eq(tableDecode("@T1(n:f)\n1.5"), [{ n: 1.5 }]), "decode still accepts a float in an f column");
+
+  // a large valid table still round-trips through decodeTables (cap does not break the happy path)
+  const big = Array.from({ length: 300 }, (_, k) => ({ id: k, ok: k % 2 === 0 }));
+  ok(eq(JSON.parse(decodeTables(tableEncode(big))), big), "decodeTables round-trips a 300-row table");
+
+  // DoS guard: a header followed by thousands of non-row lines completes fast and is left as-is
+  const hostile = "@T1(a:i,b:i,c:i)\n" + Array.from({ length: 5000 }, () => "not,a,valid,row,at,all").join("\n");
+  const t0 = Date.now();
+  const r = decodeTables(hostile);
+  ok(Date.now() - t0 < 1000, "decodeTables handles a 5,000-line malformed block in well under 1s (no quadratic blowup)");
+  ok(typeof r === "string" && r.includes("@T1(a:i,b:i,c:i)"), "malformed block left untouched");
+}
+
 console.log(`\nENGINE TESTS: ${pass} passed, ${fail} failed  ${fail === 0 ? "(bulletproof)" : "FAILED"}`);
 process.exit(fail ? 1 : 0);

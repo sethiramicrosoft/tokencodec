@@ -56,7 +56,7 @@ const html = `<!doctype html>
   <p class="tagline">The lossless prompt and data codec for LLMs. <a href="https://github.com/sethiramicrosoft/tokencodec" target="_blank" rel="noopener">View source on GitHub</a></p>
   <p class="sub">Paste a prompt. See the tokens you are wasting - tokens are the word-chunks AI models charge for, so fewer tokens means a smaller bill. You get back a shorter version that says exactly the same thing. Everything runs in your browser; nothing is uploaded.</p>
 
-  <div id="tokwarn" class="warn" role="alert" hidden><strong>Heads up:</strong> could not load the exact tokenizer (offline?). Showing an approximate count (within about 20-30%).</div>
+  <div id="tokwarn" class="warn" role="alert" hidden><strong>Heads up:</strong> could not load the exact tokenizer (offline?). Showing a rough estimate (characters / 4) - usually within about 30% on data-heavy prompts, looser on short prose.</div>
 
   <label for="prompt">Your prompt</label>
   <textarea id="prompt" aria-describedby="hint" spellcheck="false" placeholder="Paste a prompt here, including any data you would normally paste in..."></textarea>

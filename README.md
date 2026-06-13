@@ -42,8 +42,9 @@ they work today:
 
 2. **The data scientist / analyst.**
    Pastes a 10,000-row CSV to ask "average by region?" and pays for all 10,000 rows.
-   TokenCodec turns it into a 3-line query that returns only the answer - up to
-   **1,000x fewer tokens** - and when you must include data, shrinks it ~70% with
+   TokenCodec turns it into a 3-line query that returns only the answer - hundreds to
+   thousands of times fewer tokens (the proofs measure 169x at 600 rows, 16,170x at
+   60,000) - and when you must include data, shrinks it ~70% with
    zero values changed.
 
 3. **The AI product builder / indie hacker shipping an LLM feature.**
@@ -71,7 +72,7 @@ they work today:
 | You are a... | Where your tokens go | What TokenCodec does |
 |---|---|---|
 | **Software / full-stack developer** | The AI agent re-reads whole files, reprints a 500-line file to change 3 lines, dumps giant build/test logs, and resends the entire chat every turn | The rules make it search and read only what it needs, send small diffs, trim logs, and keep a compact running state (kills the quadratic chat-history tax) |
-| **Data scientist / analyst** | Pasting a 10,000-row CSV to ask one question makes the model read all 10,000 rows | Flags it and tells the AI to write a query, run it, return only the answer - up to **1,000x fewer tokens** - and shrinks data you must include, losslessly |
+| **Data scientist / analyst** | Pasting a 10,000-row CSV to ask one question makes the model read all 10,000 rows | Flags it and tells the AI to write a query, run it, return only the answer - **169x to 16,170x fewer tokens** in the proofs (600 to 60,000 rows) - and shrinks data you must include, losslessly |
 | **Auditor** | Pasting whole ledgers and transaction logs to hunt for anomalies | Ask once, query for the exceptions, return only the flagged rows instead of the whole book |
 | **Accountant** | Reconciling and summarising big financial tables | Shrinks the table **without altering a single number** (provably lossless), and turns "find the mismatches" into a query, not a full paste |
 | **Business analyst** | Dumping dashboards and exports into AI for "what's the trend?" | Compresses the data and pushes the math into a query, so you pay for the answer, not the haystack |
@@ -272,7 +273,7 @@ live in `proofs/` (`pip install tiktoken`, then `python proofs/<name>.py`).
 
 | What you do | Before | After | Result | Proof |
 |---|---|---|---|---|
-| Shrink a 600-row data table (no data lost) | 41,971 tok | ~12,500 tok | **~70% smaller** | `lossless_proof.py` |
+| Shrink a 600-row data table (no data lost) | 49,082 tok | 12,519 tok | **74% smaller** | `lossless_proof.py` |
 | Answer a question by querying data, not pasting it | 41,971 tok | 249 tok | **169x fewer** | `query_not_haystack.py` |
 | The same at 60,000 rows | 4,188,096 tok | 259 tok | **16,170x fewer** (~$12,500 / 1,000 calls) | `query_not_haystack.py` |
 | A 200-turn AI session, compact state vs resending history | 12,240,000 tok | 500,000 tok | **24.5x fewer** | `quadratic_tax.py` |
@@ -401,7 +402,8 @@ prompt sitting in the box, and press send yourself.
 
 **Output tokens too.** The second button, **Compact reply**, appends a short one-line
 rule to your prompt so the model returns tabular answers as a compact `@T1` table
-instead of verbose JSON - fewer output tokens, which cost 2-8x input. It stays inside
+instead of verbose JSON - fewer output tokens, which are billed several times more than
+input. It stays inside
 the prompt box (a raw chat has no system-prompt field), so the privacy promise holds; to
 read the compact reply, paste it into the hosted page's *"Shrink the reply too"* decoder.
 Worth a few input tokens when you expect a list or table; for prose the rule says answer
@@ -435,7 +437,7 @@ conservative and honest about their edges.
 - **Round-trip guarantee.** For any input `tableEncode` accepts (returns non-null),
   `tableDecode(tableEncode(x))` equals `x` at the JSON-value level (object key order
   is normalised to the first record). Verified by an 8,000-case adversarial fuzzer
-  covering commas, quotes, newlines, tabs, unicode, emoji, nulls and `-0`, with zero
+  covering commas, quotes, newlines, tabs, unicode, emoji and nulls, with zero
   failures. Reproduce with `npm test`.
 - **Refuse, don't corrupt.** Rather than risk a silent error, the encoder declines
   (returns `null`, you keep JSON) on: nested objects/arrays, mixed-type columns,
@@ -462,8 +464,8 @@ JSON repeats every column name on every row. A header-once typed table doesn't:
 
 ```
 @T1(name:s,score:i,csat:f,remote:b)
-Jordan Avery,87,4.6,1
-Sam Rivera,92,4.9,0
+"Jordan Avery",87,4.6,1
+"Sam Rivera",92,4.9,0
 ```
 
 Header is `@T<version>(name:type,...)`, current version `1`. Types: `s` string
@@ -483,33 +485,42 @@ honest write-up and caveats in `benchmark/RESULTS.md`.
 
 ## Saving output tokens too
 
-Output tokens cost 2-8x more than input per token, so they are worth cutting - but
-output cannot be losslessly "compressed" the way redundant input data can. You save
-it two honest ways, and TokenCodec does both, for every audience:
+Output tokens are billed several times more than input - **4 to 8x** across current
+frontier models (pinned in `benchmark/pricing.snapshot.json`; e.g. GPT-4o ~4x, Claude
+~5x, GPT-5 ~8x). But output is fundamentally unlike input: the model *generates* it, so
+it is not redundant data you can losslessly re-pack. Every output saving comes down to
+making the model generate fewer tokens. Two honest levers, in order of reliability, and
+one thing that does **not** help.
 
-- **The installed rules discipline output**, not just input: small diffs instead of
-  reprinting whole files (the biggest output cost in agentic coding), no preamble or
-  recap, the lowest reasoning effort that solves the task, and compact structured
-  results instead of pretty JSON. This ships to GitHub Copilot CLI, Codex, Claude
-  Code, Gemini and Cursor through the same `install` command.
-- **The codec runs in reverse - a real round-trip.** Ask the model to *return* an
-  `@T1` table, then expand it back to JSON on receipt with `decodeTables`. It finds
-  `@T1` blocks embedded anywhere in a free-text reply, leaves anything that is not a
-  valid table untouched, and never throws or invents data. Two front doors:
-  - **Non-technical users:** the web tool has a *"Shrink the reply too"* panel - copy
-    the ready-made instruction into any chat (ChatGPT, Claude, Copilot...), paste the
-    compact reply back, and it shows the readable version plus how many tokens it saved.
-  - **Apps:** the middleware exports `OUTPUT_FORMAT_HINT` (drop into your system
-    prompt), `decodeResponse(text)` (expand the reply), and `withRoundTrip()` (do both
-    around your own send function).
+**1. Enforced - the API obeys these (the real mechanical lever).**
 
-Measured (`benchmark/output_benchmark.mjs`): both GPT-5.4-mini and Claude Haiku 4.5
-produced valid, losslessly-decodable `@T1` and used **~32% fewer output tokens** than
-returning JSON, with no loss of accuracy versus JSON. Caveat: tested on a flat schema;
-measure before relying on it for nested or irregular output.
+- **Lower the reasoning / "thinking" budget.** Reasoning-class models emit hidden
+  reasoning tokens *before* the answer, billed at the output rate and routinely larger
+  than the answer itself - this is what is behind most complaints about premium models
+  burning tokens. Lower the budget (`reasoning_effort`, `thinking.budget_tokens`,
+  `thinkingBudget` - check your provider's docs) and the bill drops, reliably, because
+  the API enforces it. A cost/quality knob: low for routine work, high only when a task
+  truly needs the deliberation.
+- **Cap max output** (`max_completion_tokens` / `max_tokens`) and, where offered, lower
+  **verbosity**.
 
-There is no free lunch for general prose output - you shorten that by asking for
-less, with the usual tradeoffs.
+**2. Best-effort - the model may or may not obey.**
+
+The installed rules tell your agent to be brief, send small diffs instead of reprinting
+whole files (the biggest output cost in agentic coding), and return uniform lists as a
+compact `@T1` table. Measured (`benchmark/output_benchmark.mjs`): the 10-record answer is
+**130 tokens as `@T1` vs 192 as compact JSON - 32% fewer** - decoding losslessly, with no
+accuracy change per model for GPT-5.4-mini and Claude Haiku 4.5. Delivered through the
+installed rules (CLI/Codex/Claude Code), the web *"Shrink the reply too"* panel, the
+extension's *Compact reply* button, and the middleware's `OUTPUT_FORMAT_HINT`.
+
+**What does not help: decoding.** `decodeTables` / `decodeResponse` expand a compact
+`@T1` reply back into JSON, but that runs on your machine *after* the model generated and
+you were already billed - it saves zero tokens. It is plumbing so your code can read a
+reply you asked to be compact, not a discount.
+
+The honest bottom line: input is a lossless codec; output is "ask for less", and the only
+*enforced* way to ask for less is the budget and cap parameters above.
 
 ## Safety
 
@@ -530,7 +541,7 @@ npm run test:all  # everything
 
 What's covered, end to end:
 
-- **Engine** (40 checks + an 8,000-trial lossless fuzz): JSON and NDJSON round-trip,
+- **Engine** (49 checks + an 8,000-trial lossless fuzz): JSON and NDJSON round-trip,
   hostile-input safety, the numeric/format guarantees in Part 3, and the receive-side
   `decodeTables` round-trip (expands `@T1` replies back to JSON, ignores non-tables).
 - **Installer** (51 checks): idempotency, content preservation, `--check`, `--remove`,
@@ -540,6 +551,10 @@ What's covered, end to end:
 - **E2E node** (16 checks): the committed `web/index.html` and `extension/content.js`
   are in sync with `engine.mjs` (no drift), `serve.mjs` blocks path traversal, and the
   three proofs emit the exact numbers this README cites.
+- **Claims** (every datapoint in this README, RESULTS.md and the web page): recomputed
+  from the engine, the benchmarks and the pinned pricing snapshot, then asserted against
+  the prose - so no number here can silently drift. The wire-format example is decoded to
+  prove it is valid.
 - **E2E browser** (19 checks): the web tool's displayed token counts equal a real
   tokenizer, the % and $ figures are arithmetically correct, the output decodes back to
   the original data (lossless), the model switch recomputes cost, copy confirms, the

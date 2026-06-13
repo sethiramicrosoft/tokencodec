@@ -68,7 +68,11 @@ Measured with `output_benchmark.mjs` - a filter-and-sort task returning 10 recor
   returned the correct 10 records in both formats but mis-ordered a tie-break
   *identically* in JSON and `@T1` - a sorting-instruction slip, not a format fault.
   So choosing `@T1` did not cost any correctness; it only saved tokens.
-- **Savings: ~32% fewer output tokens** for the same answer.
+- **Savings: 32% fewer output tokens** for the same answer. The 10-record answer is
+  **192 tokens as compact JSON vs 130 as `@T1`** (o200k tokenizer) - a deterministic
+  property of the formats: tokenize `JSON.stringify(out_truth.json)` vs
+  `tableEncode(out_truth.json)` to reproduce. (Pretty-printed JSON is larger; the 192
+  figure is compact JSON, which is what a token-conscious caller would emit.)
 
 How to use it: ask the model to return `@T1` (give it the one-line format spec),
 then decode the reply with `tableDecode` from `engine.mjs`. Honest caveat: tested on

@@ -123,7 +123,8 @@ function tableDecode(text) {
   const version = Number(m[1]);
   if (version !== 1) throw new Error(`unsupported table version ${version}`);
   const cols = m[2].split(",").map(s => { const idx = s.lastIndexOf(":"); return [s.slice(0, idx), s.slice(idx + 1)]; });
-  for (const [, t] of cols) {
+  for (const [name, t] of cols) {
+    if (name === "__proto__") throw new Error(`unsafe column name: ${name}`); // symmetric with encode; never put a __proto__ key on a decoded row
     if (t.length !== 1 || !"sifb".includes(t)) throw new Error(`unknown type tag: ${t}`);
   }
   const out = [];
@@ -143,6 +144,8 @@ function tableDecode(text) {
       } else {
         const n = Number(cell.raw);
         if (!Number.isFinite(n)) throw new Error(`bad numeric cell for ${name}: ${cell.raw}`);
+        if (t === "i" && (!Number.isInteger(n) || Math.abs(n) > Number.MAX_SAFE_INTEGER))
+          throw new Error(`unsafe int cell for ${name}: ${cell.raw}`);   // decode stays lossless, symmetric with encode's refusal
         obj[name] = n;
       }
     });
@@ -159,6 +162,8 @@ function tableDecode(text) {
 // never throws, and never invents or drops data.
 function decodeTables(text, { space = 0 } = {}) {
   if (typeof text !== "string" || !text.includes("@T")) return text;
+  const MAX_SHRINK_ATTEMPTS = 64;       // bound the retry loop on hostile malformed blocks
+  const MAX_BLOCK_CHARS = 256_000;      // never spend O(n^2) reparsing an enormous block
   const lines = text.split("\n");
   const out = [];
   let i = 0;
@@ -167,15 +172,24 @@ function decodeTables(text, { space = 0 } = {}) {
     const trimmed = lines[i].trimStart();
     const indent = lines[i].slice(0, lines[i].length - trimmed.length);
     const header = trimmed.trimEnd();
+    // Fail fast on anything that is not a version-1 header: a bogus @T2(...) or a
+    // malformed header is left as prose without ever entering the retry loop.
+    const hm = header.match(/^@T(\d+)\((.*)\)$/);
+    if (!hm || hm[1] !== "1") { out.push(lines[i]); i++; continue; }
     // Gather contiguous candidate rows: stop at a blank line, the next table
-    // header, or end of input.
-    let j = i + 1;
-    while (j < lines.length && lines[j].trim() !== "" && !/^\s*@T\d+\(/.test(lines[j])) j++;
-    // Largest block first, then shrink from the end. This recovers when prose is
-    // glued on with no blank-line separator: the longest valid prefix wins, and
-    // the rest is emitted untouched. Empty decodes (a lone header) are rejected.
+    // header, end of input, or once the block grows too large to transform safely.
+    let j = i + 1, blockChars = header.length;
+    while (j < lines.length && lines[j].trim() !== "" && !/^\s*@T\d+\(/.test(lines[j]) && blockChars <= MAX_BLOCK_CHARS) {
+      blockChars += lines[j].length + 1; j++;
+    }
+    if (blockChars > MAX_BLOCK_CHARS) { out.push(lines[i]); i++; continue; }   // oversized -> leave untouched
+    // Largest block first, then shrink from the end (attempt-capped). This recovers
+    // when prose is glued on with no blank-line separator: the longest valid prefix
+    // wins and the rest is emitted untouched. Empty decodes (a lone header) are
+    // rejected. The cap keeps a hostile malformed block from going quadratic.
     let decoded = null, end = i + 1;
-    for (let k = j; k > i; k--) {
+    const minK = Math.max(i + 1, j - MAX_SHRINK_ATTEMPTS + 1);
+    for (let k = j; k >= minK; k--) {
       const bodyLines = lines.slice(i + 1, k).map(l => (l.startsWith(indent) ? l.slice(indent.length) : l));
       try {
         const v = tableDecode(header + "\n" + bodyLines.join("\n"));

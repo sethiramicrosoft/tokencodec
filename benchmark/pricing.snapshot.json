@@ -1,0 +1,15 @@
+{
+  "note": "Approximate public list prices, USD per 1,000,000 tokens, captured 2025. This is the pinned source for the README's 'output costs 4-8x input' claim; e2e/claims.test.mjs asserts the README range matches the min/max output:input ratio computed here. Prices move - update this file and the test stays honest.",
+  "captured": "2025",
+  "models": [
+    { "name": "GPT-4o",            "input_per_1m": 2.50,  "output_per_1m": 10.00 },
+    { "name": "GPT-4o mini",       "input_per_1m": 0.15,  "output_per_1m": 0.60  },
+    { "name": "OpenAI o3",         "input_per_1m": 2.00,  "output_per_1m": 8.00  },
+    { "name": "GPT-5",             "input_per_1m": 1.25,  "output_per_1m": 10.00 },
+    { "name": "Claude 3.5 Sonnet", "input_per_1m": 3.00,  "output_per_1m": 15.00 },
+    { "name": "Claude 3.5 Haiku",  "input_per_1m": 0.80,  "output_per_1m": 4.00  },
+    { "name": "Claude 3 Opus",     "input_per_1m": 15.00, "output_per_1m": 75.00 },
+    { "name": "Gemini 1.5 Pro",    "input_per_1m": 1.25,  "output_per_1m": 5.00  },
+    { "name": "DeepSeek-V3",       "input_per_1m": 0.27,  "output_per_1m": 1.10  }
+  ]
+}
