@@ -5,8 +5,10 @@
   "type": "module",
   "bin": { "token-diet": "install.mjs" },
   "scripts": {
-    "test": "node engine.test.mjs && node install.test.mjs",
+    "test": "node engine.test.mjs && node install.test.mjs && node middleware/compress.test.mjs",
     "build:web": "node build-web.mjs",
+    "build:ext": "node extension/build-extension.mjs",
+    "build": "node build-web.mjs && node extension/build-extension.mjs",
     "install:rules": "node install.mjs"
   },
   "keywords": ["llm","tokens","prompt","optimization","agents","claude","copilot","cursor","codex","cost"],

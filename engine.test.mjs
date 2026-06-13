@@ -85,6 +85,24 @@ ok(eq(tableDecode("@T1(a:s)"), []), "header-only (zero rows) decodes to []");
 // ---------- 7. filler no longer mangles meaning ----------
 ok(optimize("Do not do the following: rm -rf").optimized.includes("the following"), "'the following' is preserved (no meaning change)");
 
+// ---------- 7b. NDJSON / JSON-lines blocks are detected and shrunk losslessly ----------
+{
+  const recsND = Array.from({ length: 12 }, (_, i) => ({ ts: 1700000000 + i, level: i % 3 === 0 ? "warn" : "info", code: 200 + i, ok: i % 2 === 0 }));
+  const ndjson = recsND.map(r => JSON.stringify(r)).join("\n");
+  const wrapped = "Here are the logs:\n" + ndjson + "\nWhat is the most common level?";
+  const { optimized } = optimize(wrapped);
+  ok(optimized.includes("@T1("), "NDJSON block converted to a table");
+  ok(tok(optimized) < tok(wrapped), "NDJSON optimization reduces tokens");
+  const tbl = optimized.slice(optimized.indexOf("@T1("), optimized.indexOf("\nWhat is"));
+  ok(eq(tableDecode(tbl), recsND), "NDJSON block round-trips to original records");
+  // prose around the block is preserved
+  ok(optimized.includes("Here are the logs:") && optimized.includes("most common level"), "prose around NDJSON preserved");
+}
+// fewer than 3 lines is left alone (not worth a header)
+ok(!optimize('{"a":1}\n{"a":2}').optimized.includes("@T1("), "2-line NDJSON left untouched");
+// non-uniform keys are not mis-grouped
+ok(!optimize('{"a":1}\n{"b":2}\n{"c":3}').optimized.includes("@T1("), "NDJSON with differing keys not converted");
+
 // ---------- 8. realistic prompt savings ----------
 const records = [];
 const names = ["Jordan Avery", "Sam Rivera", "Casey Nguyen", "Riley Brooks", "Drew Patel"];

@@ -185,17 +185,61 @@ function findJsonArrays(text) {
   return spans;
 }
 
+// Parse a single line as a FLAT JSON object ({} with no nested object/array
+// values), or return null. Used to recognise NDJSON / JSON-lines.
+function parseFlatObject(line) {
+  const s = line.trim();
+  if (s.length < 2 || s[0] !== "{" || s[s.length - 1] !== "}") return null;
+  let v;
+  try { v = JSON.parse(s); } catch { return null; }
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  for (const k of Object.keys(v)) {
+    const val = v[k];
+    if (val !== null && typeof val === "object") return null; // nested -> not flat
+  }
+  return v;
+}
+
+// Find blocks of >=3 consecutive lines that are each a flat JSON object sharing
+// the exact same keys (NDJSON / JSON-lines, the usual shape of logs and exports).
+// Returns char spans, same contract as findJsonArrays.
+function findNdjsonBlocks(text) {
+  const spans = [];
+  const lines = [];
+  let idx = 0;
+  for (const raw of text.split("\n")) { lines.push({ start: idx, end: idx + raw.length, text: raw }); idx += raw.length + 1; }
+  let i = 0;
+  while (i < lines.length) {
+    const first = parseFlatObject(lines[i].text);
+    if (!first) { i++; continue; }
+    const keySig = Object.keys(first).join("\u0000");
+    const recs = [first];
+    let j = i + 1;
+    while (j < lines.length) {
+      const rec = parseFlatObject(lines[j].text);
+      if (!rec || Object.keys(rec).join("\u0000") !== keySig) break;
+      recs.push(rec); j++;
+    }
+    if (recs.length >= 3) {
+      spans.push({ start: lines[i].start, end: lines[j - 1].end, value: recs });
+      i = j;
+    } else i++;
+  }
+  return spans;
+}
+
 const QUERY_WORDS = /\b(average|avg|sum|total|count|how many|which|list|top|max|min|maximum|minimum|group|per |highest|lowest|sort)\b/i;
 
 export function optimize(text) {
   const passes = [];
   const flags = [];
-  const arrays = findJsonArrays(text);
+  // top-level JSON arrays + NDJSON blocks, in document order, non-overlapping
+  const spansAll = [...findJsonArrays(text), ...findNdjsonBlocks(text)].sort((a, b) => a.start - b.start);
   let segments = [];
   let cursor = 0;
   let tablesConverted = 0;
-  for (const span of arrays) {
-    if (span.start < cursor) continue;
+  for (const span of spansAll) {
+    if (span.start < cursor) continue; // skip overlaps
     segments.push({ type: "prose", text: text.slice(cursor, span.start) });
     const original = text.slice(span.start, span.end);
     const encoded = tableEncode(span.value);
@@ -210,7 +254,7 @@ export function optimize(text) {
   segments.push({ type: "prose", text: text.slice(cursor) });
 
   if (tablesConverted > 0)
-    passes.push({ id: "table", label: `Re-encoded ${tablesConverted} JSON block(s) into a lossless table`, detail: "Repeated keys, braces and quotes removed. Same values, fully reversible." });
+    passes.push({ id: "table", label: `Re-encoded ${tablesConverted} data block(s) into a lossless table`, detail: "Repeated keys, braces and quotes removed. Same values, fully reversible." });
 
   // filler + whitespace cleanup on PROSE only (never inside data)
   let fillerCount = 0;
@@ -226,7 +270,7 @@ export function optimize(text) {
   const optimized = segments.map(s => s.text).join("").replace(/[ \t]+\n/g, "\n").trim();
 
   // advisory: a big dataset pasted to ask a computable question -> query it instead
-  for (const span of arrays) {
+  for (const span of spansAll) {
     if (span.value.length >= 20) {
       const around = text.slice(Math.max(0, span.start - 300), span.start) + text.slice(span.end, span.end + 300);
       if (QUERY_WORDS.test(around) || QUERY_WORDS.test(text.slice(0, 300))) {
