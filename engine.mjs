@@ -329,7 +329,7 @@ export function optimize(text) {
     if (span.value.length >= 20) {
       const around = text.slice(Math.max(0, span.start - 300), span.start) + text.slice(span.end, span.end + 300);
       if (QUERY_WORDS.test(around) || QUERY_WORDS.test(text.slice(0, 300))) {
-        flags.push({ id: "query", level: "high", message: "You're pasting a large dataset to answer a math question (average, count, sum...). The model is billed for every row it reads. Better: ask the model to write a script, run it on your own machine, then paste back only the result. That is 10x to 1000x fewer tokens." });
+        flags.push({ id: "query", level: "high", message: "You're pasting a large dataset to answer a math question (average, count, sum...). The model is billed for every row it reads. Better: ask the model to write a script, run it on your own machine, then paste back only the result. That is often 100x or more fewer tokens." });
         break;
       }
     }

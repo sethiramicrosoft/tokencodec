@@ -144,6 +144,23 @@ The in-browser optimizer is published (free GitHub Pages) at
 **https://sethiramicrosoft.github.io/tokencodec/** - zero install, works on any
 device, nothing uploaded. It auto-redeploys whenever the web tool changes.
 
+### What it looks like
+
+These are captured straight from the test run that drives the real web tool and the real
+extension in Chromium (`npm run screenshots`), so they show actual output, not mockups.
+
+**The hosted page - paste a prompt, watch the bill drop:**
+
+![The TokenCodec web tool: a sample prompt shrunk from 2,139 to 633 tokens (70% smaller), with a per-request dollar saving and a plain-English breakdown of what changed.](docs/screenshots/web-input.png)
+
+**Shrink the reply too - paste a compact `@T1` answer back and read it:**
+
+![The "Shrink the reply too" panel: a ready-to-paste instruction, a compact @T1 reply, and the decoded readable JSON with the tokens it saved.](docs/screenshots/web-output.png)
+
+**The browser extension - one click inside ChatGPT, Claude or Gemini:**
+
+![The browser extension: a prompt box re-encoded to a compact @T1 table in place, with a "Shrink prompt" button, a "Compact reply" button, and a toast reading "Shrunk ~72% (about 118 fewer tokens)".](docs/screenshots/extension.png)
+
 ---
 
 # Part 1 - The beginner path
@@ -218,6 +235,28 @@ block (your existing content in those files is preserved), and a tool you do not
 just gets an unused file that `--remove` cleans up. The per-repo install above also
 covers all of these via `AGENTS.md`, `CLAUDE.md` and `.github/copilot-instructions.md`
 - use `--global` when you want it everywhere by default.
+
+#### Undo anytime - `--remove`
+
+The installer never silently owns your files. Everything it writes goes between two
+markers - `<!-- TOKENCODEC:START -->` and `<!-- TOKENCODEC:END -->` - so it can take
+exactly that back out:
+
+```bash
+node /path/to/tokencodec/install.mjs --remove            # undo in this project
+node /path/to/tokencodec/install.mjs --global --remove   # undo the user-level install
+node /path/to/tokencodec/install.mjs --remove --dry-run   # preview what would be removed
+```
+
+What `--remove` does, precisely:
+
+- **A file you already had** (e.g. your own `AGENTS.md`): it deletes only the marked
+  block and leaves the rest of your file byte-for-byte.
+- **A file only TokenCodec created** (e.g. `CLAUDE.md`, `GEMINI.md`,
+  `.cursor/rules/tokencodec.mdc` with nothing but our block): it deletes the whole file.
+- **A file it never touched:** left alone - it only acts on files containing its markers.
+
+So installing and then removing returns your project to exactly where it started.
 
 #### How a text file changes the agent's behavior
 
@@ -298,7 +337,7 @@ loss. It's not a lossy summary. It's the same information, written compactly.
 | `node install.mjs --global` | Install for every repo at the user level: Copilot CLI, Claude Code, Codex, Gemini CLI |
 | `node install.mjs --dry-run` | Show what would change, write nothing |
 | `node install.mjs --check` | Exit code 1 if anything is missing/outdated - drop into CI |
-| `node install.mjs --remove` | Cleanly remove everything it added |
+| `node install.mjs --remove` | Undo: strip our marked block (keeping your own content), and delete files that were only ours |
 | `node install.mjs --list` | List the files it manages |
 | `node install.mjs --dir <path>` | Operate on another folder |
 | `node serve.mjs` | Open the in-browser optimizer |
@@ -544,8 +583,9 @@ What's covered, end to end:
 - **Engine** (49 checks + an 8,000-trial lossless fuzz): JSON and NDJSON round-trip,
   hostile-input safety, the numeric/format guarantees in Part 3, and the receive-side
   `decodeTables` round-trip (expands `@T1` replies back to JSON, ignores non-tables).
-- **Installer** (51 checks): idempotency, content preservation, `--check`, `--remove`,
-  symlink refusal, malformed-block repair, directory-target handling.
+- **Installer** (55 checks): idempotency, content preservation, `--check`, `--remove`
+  (including `--remove --dry-run` previews nothing destructive), symlink refusal,
+  malformed-block repair, directory-target handling.
 - **Middleware** (21 checks): input compression is lossless and reports real savings;
   the output round-trip injects the format hint and decodes `@T1` replies back to JSON.
 - **E2E node** (16 checks): the committed `web/index.html` and `extension/content.js`
@@ -555,12 +595,16 @@ What's covered, end to end:
   from the engine, the benchmarks and the pinned pricing snapshot, then asserted against
   the prose - so no number here can silently drift. The wire-format example is decoded to
   prove it is valid.
-- **E2E browser** (19 checks): the web tool's displayed token counts equal a real
+- **E2E browser** (21 checks): the web tool's displayed token counts equal a real
   tokenizer, the % and $ figures are arithmetically correct, the output decodes back to
   the original data (lossless), the model switch recomputes cost, copy confirms, the
-  "Shrink the reply too" panel expands a compact `@T1` reply losslessly, the extension
-  shrinks a real prompt box and its "Compact reply" button adds the `@T1` rule - all with
-  zero console errors.
+  "Shrink the reply too" panel expands a compact `@T1` reply losslessly, and the actual
+  `extension/content.js` is loaded into a real page where its "Shrink prompt" button
+  losslessly compacts both a plain `<textarea>` and a contenteditable rich editor (the
+  path ChatGPT/Claude use) and its "Compact reply" button adds the `@T1` rule - all with
+  zero console errors. (The live ChatGPT/Claude/Gemini sites are not driven - they need a
+  login and block automation - so the content script is exercised against equivalent
+  editors rather than the real pages.)
 
 ## License
 

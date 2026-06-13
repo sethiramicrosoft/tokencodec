@@ -111,6 +111,23 @@ function sampleRecords() {
     const extWithHint = await extPage.inputValue("#t");
     ok(extWithHint.includes("@T1(col:type") && /Reply rule:/.test(extWithHint), "extension: 'Compact reply' adds the reply-saver instruction to the prompt");
 
+    // ---------- B2. Extension on a rich contenteditable editor (the path Claude / ChatGPT use) ----------
+    // A plain <textarea> exercises the native-value-setter branch; ChatGPT and Claude use
+    // contenteditable (ProseMirror/Lexical), which goes through execCommand("insertText").
+    // Drive that real branch in Chromium so it is not left untested.
+    const richPrompt = "Average score by region for this data: " + JSON.stringify(recs); // single line -> robust in contenteditable
+    const richPage = await ctx.newPage();
+    await richPage.setContent('<!doctype html><html><body><div id="r" contenteditable="true" role="textbox" style="width:600px;min-height:200px"></div></body></html>');
+    await richPage.addScriptTag({ path: path.join(root, "extension", "content.js") });
+    await richPage.evaluate((p) => { const el = document.getElementById("r"); el.focus(); el.textContent = p; }, richPrompt);
+    await richPage.focus("#r");
+    await richPage.locator("button", { hasText: "Shrink prompt" }).click();
+    await richPage.waitForTimeout(150);
+    const richOut = await richPage.evaluate(() => document.getElementById("r").innerText);
+    ok(richOut.includes("@T1("), "extension: rich contenteditable editor was shrunk (execCommand insertText path)");
+    ok(eq(tableDecode(richOut.slice(richOut.indexOf("@T1("))), recs), "extension: contenteditable shrink is lossless");
+    await richPage.close();
+
     // ---------- C. Output decode (the reply round-trip, for non-technical web users) ----------
     const expectReply = [
       { name: "Riley Brooks", score: 95, remote: true },

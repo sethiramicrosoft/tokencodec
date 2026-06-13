@@ -194,9 +194,9 @@ function check(dir, { global = false, home } = {}) {
   else console.log("\nAll targets present and current.");
 }
 
-function remove(dir, { global = false, home } = {}) {
+function remove(dir, { global = false, home, dryRun = false } = {}) {
   const { root, items } = resolveTargets(dir, { global, home });
-  console.log("TokenCodec -> removing managed blocks\n");
+  console.log(dryRun ? "TokenCodec -> DRY RUN (removing nothing)\n" : "TokenCodec -> removing managed blocks\n");
   for (const t of items) {
     const abs = t.abs;
     if (!fs.existsSync(abs)) continue;
@@ -207,7 +207,9 @@ function remove(dir, { global = false, home } = {}) {
       assertSafeWriteTarget(root, abs);
       const cleaned = stripBlocks(content).replace(/[ \t]+\n/g, "\n").replace(/\s+$/, "");
       const headerTrim = (t.header || "").trim();
-      if (cleaned.trim() === "" || cleaned.trim() === headerTrim) {
+      const wholeFile = cleaned.trim() === "" || cleaned.trim() === headerTrim;
+      if (dryRun) { console.log(`  would ${wholeFile ? "remove file" : "clean      "}  ${t.label}`); continue; }
+      if (wholeFile) {
         fs.rmSync(abs);
         console.log(`  removed file  ${t.label}`);
       } else {
@@ -218,6 +220,7 @@ function remove(dir, { global = false, home } = {}) {
       console.log(`  skipped (${e.code || e.message})  ${t.label}`);
     }
   }
+  if (dryRun) console.log("\nDry run only. Re-run without --dry-run to apply.");
 }
 
 function list() {
@@ -235,7 +238,7 @@ function main(argv) {
   const global = args.includes("--global");
   if (args.includes("--list")) return list();
   if (args.includes("--check")) return check(dir, { global });
-  if (args.includes("--remove")) return remove(dir, { global });
+  if (args.includes("--remove")) return remove(dir, { global, dryRun: args.includes("--dry-run") });
   return install(dir, { dryRun: args.includes("--dry-run"), global });
 }
 

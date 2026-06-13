@@ -55,6 +55,17 @@ ok(getBlockBody(read("AGENTS.md")) === null, "remove strips the block from user 
 ok(!exists(path.join(".cursor", "rules", "tokencodec.mdc")), "remove deletes our-only mdc file");
 ok(!exists("CLAUDE.md"), "remove deletes our-only CLAUDE.md");
 
+// 6b. remove --dry-run reports but changes nothing (safety preview before a destructive op)
+fs.writeFileSync(path.join(tmp, "AGENTS.md"), "# Team rules\n\n- Use tabs.\n");
+install(tmp);                                   // re-create everything + append a block to AGENTS.md
+const agentsBefore = read("AGENTS.md");
+remove(tmp, { dryRun: true });
+ok(read("AGENTS.md") === agentsBefore, "remove --dry-run leaves a user file byte-for-byte unchanged");
+ok(getBlockBody(read("AGENTS.md")) !== null, "remove --dry-run does NOT strip the block");
+ok(exists("CLAUDE.md") && exists(path.join(".cursor", "rules", "tokencodec.mdc")), "remove --dry-run deletes no files");
+remove(tmp);                                    // real remove still works afterwards
+ok(!exists("CLAUDE.md") && getBlockBody(read("AGENTS.md")) === null, "real remove after a dry-run still cleans up");
+
 // 7. render never loses bytes outside the block (property-ish)
 const sample = "line A\n\n" + `${START}\nx\n${END}` + "\nline B\n";
 const r = render(sample, "# H\n");
