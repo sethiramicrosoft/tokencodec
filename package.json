@@ -1,0 +1,15 @@
+{
+  "name": "token-diet",
+  "version": "1.0.0",
+  "description": "Put every AI coding agent on a token diet before you start vibe coding. One command writes token-efficiency rules into AGENTS.md, CLAUDE.md, GEMINI.md, Copilot and Cursor.",
+  "type": "module",
+  "bin": { "token-diet": "install.mjs" },
+  "scripts": {
+    "test": "node engine.test.mjs && node install.test.mjs",
+    "build:web": "node build-web.mjs",
+    "install:rules": "node install.mjs"
+  },
+  "keywords": ["llm","tokens","prompt","optimization","agents","claude","copilot","cursor","codex","cost"],
+  "license": "MIT",
+  "dependencies": { "gpt-tokenizer": "^3.4.0" }
+}
