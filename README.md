@@ -126,6 +126,17 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
 | **API-side compressor** | Production apps burning tokens at runtime | `middleware/` |
 | **Reproducible proofs** | Skeptics & researchers | `proofs/` |
 
+### Which one should I use?
+
+- **You just chat** (paste data into ChatGPT, Claude or Gemini): use the **hosted page**
+  (zero install) or the **extension** (same codec, but it lives in the chat so you skip
+  the copy-paste). Either one. The page also decodes a compact reply back for you.
+- **You use an AI coding agent** (Copilot CLI, Codex, Claude Code, Cursor): run the
+  **rules installer** once. From then on it is automatic - there is no button to click.
+- **You build an app that calls an LLM API**: use the **middleware** to compress requests
+  (and decode `@T1` replies) at runtime.
+- **You just want the lossless table primitive**: import the **engine**.
+
 ### The hosted page is live
 
 The in-browser optimizer is published (free GitHub Pages) at
