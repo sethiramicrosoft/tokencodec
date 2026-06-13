@@ -13,9 +13,19 @@ const ui = `
 (function () {
   const estimate = s => Math.ceil([...s].length / 4); // approximate, no network
 
+  // Remember the last prompt box the user actually focused. Clicking our floating
+  // button blurs the composer, and on a real chat page the FIRST contenteditable in
+  // the DOM is often not the prompt (a sidebar search box, a hidden field). Tracking
+  // the user's own last focus - and not stealing focus on mousedown - keeps us on the
+  // box they were typing in (ChatGPT/Claude ProseMirror, Gemini Quill).
+  const trackable = el => !!el && (el.tagName === "TEXTAREA" || el.isContentEditable);
+  let lastEditable = null;
+  document.addEventListener("focusin", e => { if (trackable(e.target)) lastEditable = e.target; }, true);
+
   function getEditable() {
     const a = document.activeElement;
-    if (a && (a.tagName === "TEXTAREA" || a.isContentEditable)) return a;
+    if (trackable(a)) return a;
+    if (trackable(lastEditable) && lastEditable.isConnected) return lastEditable;
     return document.querySelector('textarea, div[contenteditable="true"], [role="textbox"]');
   }
   function readText(el) {
@@ -51,6 +61,7 @@ const ui = `
       color: "#fff", font: "600 13px system-ui, sans-serif", cursor: "pointer",
       boxShadow: "0 2px 10px rgba(0,0,0,.35)"
     });
+    b.addEventListener("mousedown", e => e.preventDefault()); // do not steal focus from the prompt box
     return b;
   }
 

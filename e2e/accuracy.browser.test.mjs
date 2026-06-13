@@ -128,6 +128,24 @@ function sampleRecords() {
     ok(eq(tableDecode(richOut.slice(richOut.indexOf("@T1("))), recs), "extension: contenteditable shrink is lossless");
     await richPage.close();
 
+    // ---------- B3. Several editors on the page: shrink the one the user typed in ----------
+    // Real chat pages have more than one contenteditable / role=textbox (sidebar
+    // search, hidden fields). A naive "first match" grabs the wrong node once the
+    // floating button takes focus. Put a decoy editor FIRST in the DOM, type into the
+    // real composer second, click Shrink, and assert only the composer changed.
+    const decoyPage = await ctx.newPage();
+    await decoyPage.setContent('<!doctype html><html><body><div id="decoy" contenteditable="true" role="textbox" style="width:300px;min-height:40px">search</div><div id="real" contenteditable="true" role="textbox" style="width:600px;min-height:200px"></div></body></html>');
+    await decoyPage.addScriptTag({ path: path.join(root, "extension", "content.js") });
+    await decoyPage.evaluate((p) => { const el = document.getElementById("real"); el.focus(); el.textContent = p; }, richPrompt);
+    await decoyPage.focus("#real");
+    await decoyPage.locator("button", { hasText: "Shrink prompt" }).click();
+    await decoyPage.waitForTimeout(150);
+    const realOut = await decoyPage.evaluate(() => document.getElementById("real").innerText);
+    const decoyOut = await decoyPage.evaluate(() => document.getElementById("decoy").innerText);
+    ok(realOut.includes("@T1("), "extension: with several editors, the focused prompt box is the one shrunk");
+    ok(decoyOut === "search", "extension: the decoy editor (e.g. a sidebar search box) is left untouched");
+    await decoyPage.close();
+
     // ---------- C. Output decode (the reply round-trip, for non-technical web users) ----------
     const expectReply = [
       { name: "Riley Brooks", score: 95, remote: true },

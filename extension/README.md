@@ -17,10 +17,12 @@ browser to inject it only on `chatgpt.com`, `chat.openai.com`, `claude.ai` and
 1. **It mounts one button.** On load it appends a fixed-position "Shrink prompt" button
    and a status toast to the page. These chat apps re-render their DOM constantly, so a
    `MutationObserver` re-appends the button if it ever gets torn out.
-2. **It locates your editor.** On click it grabs the focused element if it is editable,
-   otherwise the first `textarea`, `[contenteditable]` or `[role="textbox"]` on the page.
-   That covers both the plain `<textarea>` and rich editors (ProseMirror, Lexical) these
-   sites use.
+2. **It locates your editor.** On click it uses the editor you have focused; if the click
+   moved focus, it falls back to the last prompt box you typed in, and only then to the
+   first `textarea`, `[contenteditable]` or `[role="textbox"]` on the page. It also avoids
+   stealing focus when you press the button. So on a real page with several editors (a
+   sidebar search, hidden fields) it still targets your actual prompt, covering both the
+   plain `<textarea>` and rich editors (ProseMirror, Lexical) these sites use.
 3. **It reads, then runs `optimize()`.** It reads `.value` (textarea/input) or
    `.innerText` (rich editor), then runs the same lossless pass used by the CLI and the
    web tool: JSON arrays and NDJSON blocks become a compact `@T1` table, filler is

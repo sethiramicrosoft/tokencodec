@@ -423,8 +423,10 @@ access, no network call - the codec is bundled in.
 1. **It adds one button.** On load it injects a floating "Shrink prompt" button and a
    status toast. These sites re-render constantly, so a `MutationObserver` re-attaches
    the button whenever the page rebuilds its DOM.
-2. **On click it reads your prompt box.** It finds the editor you are typing in -
-   whether a plain `<textarea>` or a rich contenteditable editor like ProseMirror or
+2. **On click it reads the prompt box you were typing in.** It remembers the last editor
+   you focused and does not steal focus when the button is pressed, so even on a busy page
+   with several editors (a sidebar search, hidden fields) it still targets your actual
+   prompt - a plain `<textarea>` or a rich contenteditable editor like ProseMirror or
    Lexical (what Claude, Gemini and current ChatGPT use) - and pulls the text out.
 3. **It runs `optimize()` on that text.** The same pass used everywhere: any JSON array
    or NDJSON/log block becomes a compact `@T1` table and filler is stripped. No value is
@@ -455,6 +457,23 @@ normally.
 2. Open `chrome://extensions` (Chrome, Edge or Brave) and turn on **Developer mode**.
 3. Click **Load unpacked** and pick the `extension/` folder.
 4. Open ChatGPT, Claude or Gemini, click into the message box, and press **Shrink prompt**.
+
+### Test it on your own account (about 60 seconds)
+
+Those four steps are the whole test - there is no hidden setup, and this is exactly what
+an end user does. To confirm it works for you: load the extension, open ChatGPT, Claude or
+Gemini, click into the message box, and paste a JSON array such as:
+
+```json
+[{"id":1,"region":"APAC","total":248.5,"paid":true},{"id":2,"region":"EMEA","total":76,"paid":false}]
+```
+
+Press **Shrink prompt**. The box should collapse to a compact `@T1(...)` table and a toast
+should report the tokens saved (see the [before/after screenshots](#what-it-looks-like)
+above, which come from this exact flow). Press **Compact reply** to append the one-line
+reply rule. Then press the chat's own send button yourself - the model reads the table
+exactly as it read the JSON. If the toast says it could not find your box, click into the
+box once and press Shrink again.
 
 Honest limits: the token counts in the toast are an estimate (~4 chars/token) to stay
 fully offline - the savings are real, the exact figure depends on the model's tokenizer;
@@ -595,16 +614,17 @@ What's covered, end to end:
   from the engine, the benchmarks and the pinned pricing snapshot, then asserted against
   the prose - so no number here can silently drift. The wire-format example is decoded to
   prove it is valid.
-- **E2E browser** (21 checks): the web tool's displayed token counts equal a real
+- **E2E browser** (23 checks): the web tool's displayed token counts equal a real
   tokenizer, the % and $ figures are arithmetically correct, the output decodes back to
   the original data (lossless), the model switch recomputes cost, copy confirms, the
   "Shrink the reply too" panel expands a compact `@T1` reply losslessly, and the actual
   `extension/content.js` is loaded into a real page where its "Shrink prompt" button
   losslessly compacts both a plain `<textarea>` and a contenteditable rich editor (the
-  path ChatGPT/Claude use) and its "Compact reply" button adds the `@T1` rule - all with
-  zero console errors. (The live ChatGPT/Claude/Gemini sites are not driven - they need a
-  login and block automation - so the content script is exercised against equivalent
-  editors rather than the real pages.)
+  path ChatGPT/Claude use), it shrinks the editor you focused rather than a decoy search
+  box when several share the page, and its "Compact reply" button adds the `@T1` rule -
+  all with zero console errors. (The live ChatGPT/Claude/Gemini sites are not driven -
+  they need a login and block automation - so the content script is exercised against
+  equivalent editors rather than the real pages.)
 
 ## License
 
