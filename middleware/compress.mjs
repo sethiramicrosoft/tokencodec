@@ -8,7 +8,7 @@
 // data into a compact lossless table, stripping filler). It never invents or
 // drops information, so the model sees the same facts for fewer tokens.
 
-import { optimize } from "../engine.mjs";
+import { optimize, decodeTables } from "../engine.mjs";
 
 // Rough, dependency-free token estimate (~4 chars/token). Pass your real
 // tokenizer via { tokenizer } for exact numbers (e.g. gpt-tokenizer's encode).
@@ -62,4 +62,42 @@ export async function withCompression(messages, send, opts = {}) {
   const { messages: compressed, before, after, saved, flags } = compressMessages(messages, opts);
   const response = await send(compressed);
   return { response, stats: { before, after, saved, flags } };
+}
+
+// ---------------------------------------------------------------------------
+// OUTPUT side. The above shrinks what you SEND. The below shrinks what the model
+// WRITES BACK (output tokens cost 2-8x input). There is no lossless free lunch
+// for prose, but when the answer is uniform tabular data you can ask for it as a
+// compact @T1 table and decode it back to JSON on receipt - a real round-trip.
+
+// Drop this into your system prompt so the model replies in @T1 for tabular
+// answers. Pair it with decodeResponse() below so your app still gets JSON.
+export const OUTPUT_FORMAT_HINT =
+  "When your answer is a list of records that all share the same fields, reply " +
+  "with a single TokenCodec @T1 table instead of JSON, to save output tokens. " +
+  "Format: a header line @T1(col:type,...) where type is s=string i=int f=float " +
+  "b=bool, then one comma-separated row per record, strings double-quoted, null " +
+  "written as \\N, and nothing after the last row. Use it only for uniform " +
+  "tabular data; answer normally (prose) for everything else.";
+
+// Receive-side: expand any @T1 tables the model emitted back into JSON, in place.
+// Safe on ordinary prose (returned unchanged); never throws, never invents data.
+// This is the OUTPUT half of the round-trip.
+export function decodeResponse(text, { space = 0 } = {}) {
+  return decodeTables(text, { space });
+}
+
+// Full round-trip helper: compress the request, ask for @T1 replies, and decode
+// the reply. `send` receives the compressed messages and must return the
+// assistant's reply TEXT (a string). Returns the decoded text plus stats.
+// Pass { injectHint: false } if you manage the system prompt yourself.
+export async function withRoundTrip(messages, send, opts = {}) {
+  if (!Array.isArray(messages)) throw new TypeError("messages must be an array");
+  const withHint = opts.injectHint === false
+    ? messages
+    : [{ role: "system", content: OUTPUT_FORMAT_HINT }, ...messages];
+  const { messages: compressed, before, after, saved, flags } = compressMessages(withHint, opts);
+  const reply = await send(compressed);
+  const text = typeof reply === "string" ? decodeResponse(reply, { space: opts.space }) : reply;
+  return { text, raw: reply, stats: { before, after, saved, flags } };
 }

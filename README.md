@@ -337,6 +337,24 @@ const reply = await openai.chat.completions.create({ model, messages });
 It re-encodes embedded JSON/NDJSON losslessly and strips filler, so the model sees
 the same facts for fewer tokens. Image/tool parts pass through untouched.
 
+To cut the **reply** too, ask for an `@T1` table and expand it back to JSON on receipt:
+
+```js
+import { withRoundTrip } from "./middleware/compress.mjs";
+
+// Compresses the request, adds OUTPUT_FORMAT_HINT so the model replies in @T1 for
+// tabular answers, then decodes that reply back to JSON. `send` returns reply text.
+const { text, stats } = await withRoundTrip(rawMessages, async (messages) => {
+  const r = await openai.chat.completions.create({ model, messages });
+  return r.choices[0].message.content;
+});
+// `text` is normal JSON your app can parse; the model billed you for the smaller @T1.
+```
+
+Or wire the pieces yourself: `OUTPUT_FORMAT_HINT` (a system-prompt string) and
+`decodeResponse(text)` (expands any `@T1` in a reply, leaves prose untouched). There is
+no lossless win for free-form prose - this helps when the answer is uniform records.
+
 ## Browser extension (ChatGPT / Claude / Gemini)
 
 `npm run build:ext`, then load the `extension/` folder via `chrome://extensions`
@@ -406,18 +424,28 @@ honest write-up and caveats in `benchmark/RESULTS.md`.
 
 Output tokens cost 2-8x more than input per token, so they are worth cutting - but
 output cannot be losslessly "compressed" the way redundant input data can. You save
-it two honest ways, and TokenCodec does both:
+it two honest ways, and TokenCodec does both, for every audience:
 
 - **The installed rules discipline output**, not just input: small diffs instead of
   reprinting whole files (the biggest output cost in agentic coding), no preamble or
   recap, the lowest reasoning effort that solves the task, and compact structured
-  results instead of pretty JSON.
-- **The codec works in reverse:** ask the model to *return* an `@T1` table and decode
-  the reply with `tableDecode`. Measured (`benchmark/output_benchmark.mjs`): both
-  GPT-5.4-mini and Claude Haiku 4.5 produced valid, losslessly-decodable `@T1` and
-  used **~32% fewer output tokens** than returning JSON, with no loss of accuracy
-  versus JSON. Caveat: tested on a flat schema; measure before relying on it for
-  nested or irregular output.
+  results instead of pretty JSON. This ships to GitHub Copilot CLI, Codex, Claude
+  Code, Gemini and Cursor through the same `install` command.
+- **The codec runs in reverse - a real round-trip.** Ask the model to *return* an
+  `@T1` table, then expand it back to JSON on receipt with `decodeTables`. It finds
+  `@T1` blocks embedded anywhere in a free-text reply, leaves anything that is not a
+  valid table untouched, and never throws or invents data. Two front doors:
+  - **Non-technical users:** the web tool has a *"Shrink the reply too"* panel - copy
+    the ready-made instruction into any chat (ChatGPT, Claude, Copilot...), paste the
+    compact reply back, and it shows the readable version plus how many tokens it saved.
+  - **Apps:** the middleware exports `OUTPUT_FORMAT_HINT` (drop into your system
+    prompt), `decodeResponse(text)` (expand the reply), and `withRoundTrip()` (do both
+    around your own send function).
+
+Measured (`benchmark/output_benchmark.mjs`): both GPT-5.4-mini and Claude Haiku 4.5
+produced valid, losslessly-decodable `@T1` and used **~32% fewer output tokens** than
+returning JSON, with no loss of accuracy versus JSON. Caveat: tested on a flat schema;
+measure before relying on it for nested or irregular output.
 
 There is no free lunch for general prose output - you shorten that by asking for
 less, with the usual tradeoffs.
@@ -441,18 +469,21 @@ npm run test:all  # everything
 
 What's covered, end to end:
 
-- **Engine** (28 checks + an 8,000-trial lossless fuzz): JSON and NDJSON round-trip,
-  hostile-input safety, and the numeric/format guarantees in Part 3.
-- **Installer** (39 checks): idempotency, content preservation, `--check`, `--remove`,
+- **Engine** (40 checks + an 8,000-trial lossless fuzz): JSON and NDJSON round-trip,
+  hostile-input safety, the numeric/format guarantees in Part 3, and the receive-side
+  `decodeTables` round-trip (expands `@T1` replies back to JSON, ignores non-tables).
+- **Installer** (51 checks): idempotency, content preservation, `--check`, `--remove`,
   symlink refusal, malformed-block repair, directory-target handling.
-- **Middleware** (13 checks): message compression is lossless and reports real savings.
+- **Middleware** (21 checks): input compression is lossless and reports real savings;
+  the output round-trip injects the format hint and decodes `@T1` replies back to JSON.
 - **E2E node** (16 checks): the committed `web/index.html` and `extension/content.js`
   are in sync with `engine.mjs` (no drift), `serve.mjs` blocks path traversal, and the
   three proofs emit the exact numbers this README cites.
-- **E2E browser** (13 checks): the web tool's displayed token counts equal a real
+- **E2E browser** (18 checks): the web tool's displayed token counts equal a real
   tokenizer, the % and $ figures are arithmetically correct, the output decodes back to
-  the original data (lossless), the model switch recomputes cost, copy confirms, and the
-  extension shrinks a real prompt box losslessly - with zero console errors.
+  the original data (lossless), the model switch recomputes cost, copy confirms, the
+  "Shrink the reply too" panel expands a compact `@T1` reply losslessly, and the
+  extension shrinks a real prompt box - all with zero console errors.
 
 ## License
 

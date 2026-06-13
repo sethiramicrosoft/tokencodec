@@ -116,6 +116,23 @@ const html = `<!doctype html>
   <textarea id="out" readonly aria-label="Optimized prompt output"></textarea>
   <div class="row"><button id="copy" type="button" class="secondary">Copy optimized prompt</button><span id="copied" role="status" hidden></span></div>
 
+  <section aria-labelledby="out-h">
+    <h2 id="out-h" style="margin-top:40px">Shrink the reply too (output tokens)</h2>
+    <p class="sub" style="margin-bottom:14px">Models charge more for what they write back than for what you send. You cannot losslessly shrink ordinary sentences, but when the answer is a list of records you can ask for it as a compact table - then paste it back here to read it. Both steps run in your browser.</p>
+
+    <label for="hint-out">1. Paste this at the top of your chat (ChatGPT, Claude, Copilot, anything)</label>
+    <textarea id="hint-out" readonly aria-label="Instruction to paste into your AI chat" style="min-height:120px">Two quick rules to keep your replies cheap. 1) Be brief: skip the preamble and the recap, just answer. 2) When your answer is a list of items that all share the same fields, give it to me as a compact TokenCodec @T1 table instead of JSON - a header line @T1(col:type,...) where type is s for text, i for whole number, f for decimal, b for true or false, then one comma-separated row per item, text in double quotes, an empty value written as \\N. Use normal sentences for everything else.</textarea>
+    <div class="row"><button id="copyhint" type="button" class="secondary">Copy instruction</button><span id="hintcopied" role="status" hidden></span></div>
+
+    <label for="decode-in" style="margin-top:22px">2. Got a compact @T1 reply back? Paste it to read it</label>
+    <textarea id="decode-in" spellcheck="false" placeholder="Paste an @T1(...) reply from the assistant here..." style="min-height:120px"></textarea>
+    <div class="row"><button id="decsample" type="button" class="secondary">Try a sample reply</button></div>
+    <div id="decode-stats" class="sub" style="margin-top:10px" aria-live="polite" hidden></div>
+    <label for="decode-out">Readable version</label>
+    <textarea id="decode-out" readonly aria-label="Decoded readable output" style="min-height:120px"></textarea>
+    <div class="row"><button id="copydec" type="button" class="secondary">Copy readable version</button><span id="deccopied" role="status" hidden></span></div>
+  </section>
+
   <footer>
     <p><strong>TokenCodec</strong> - the lossless prompt and data codec for LLMs.
       <a href="https://github.com/sethiramicrosoft/tokencodec" target="_blank" rel="noopener">GitHub repository</a> -
@@ -184,17 +201,13 @@ function scheduleRecompute() { clearTimeout(timer); timer = setTimeout(recompute
 
 $('prompt').addEventListener('input', scheduleRecompute);
 $('model').addEventListener('change', renderMoney); // price change is just arithmetic; no re-optimize
-$('copy').addEventListener('click', async () => {
-  const note = $('copied');
-  try {
-    await navigator.clipboard.writeText($('out').value);
-    note.textContent = 'Copied to clipboard';
-  } catch {
-    note.textContent = 'Copy failed - select the text and copy manually.';
-  }
+async function copyText(text, note) {
+  try { await navigator.clipboard.writeText(text); note.textContent = 'Copied to clipboard'; }
+  catch { note.textContent = 'Copy failed - select the text and copy manually.'; }
   note.hidden = false;
   setTimeout(() => { note.hidden = true; }, 2500);
-});
+}
+$('copy').addEventListener('click', () => copyText($('out').value, $('copied')));
 $('sample').addEventListener('click', () => {
   const recs = [];
   const names = ['Jordan Avery','Sam Rivera','Casey Nguyen','Riley Brooks','Drew Patel'];
@@ -210,9 +223,50 @@ $('sample').addEventListener('click', () => {
 });
 recompute(); // render immediately with the fallback so the UI works even if the CDN is slow or blocked
 
+// ---- OUTPUT side: expand a compact @T1 reply back into readable JSON ----
+let decTimer = 0;
+function renderDecode() {
+  const src = $('decode-in').value;
+  const stats = $('decode-stats');
+  if (!src.trim()) { $('decode-out').value = ''; stats.hidden = true; return; }
+  if (src.indexOf('@T1(') === -1) {
+    $('decode-out').value = src;
+    stats.hidden = false;
+    stats.textContent = 'No @T1 table found here - paste a reply that contains an @T1(...) line.';
+    return;
+  }
+  const pretty = decodeTables(src, { space: 2 });
+  $('decode-out').value = pretty;
+  if (pretty === src) {
+    stats.hidden = false;
+    stats.textContent = 'Could not read a complete @T1 table here - make sure the header line and all of its rows were pasted.';
+    return;
+  }
+  const tIn = tokCached(src);
+  const tJson = tokCached(decodeTables(src, { space: 0 }));
+  const saved = tJson - tIn;
+  const pct = tJson ? Math.round(100 * saved / tJson) : 0;
+  stats.hidden = false;
+  stats.textContent = saved > 0
+    ? 'That compact reply used ' + fmt(saved) + ' fewer tokens than the ' + fmt(tJson) + '-token JSON version (' + pct + '% smaller) - and the smaller one is what the model billed you for.'
+    : 'Expanded to readable JSON.';
+}
+$('decode-in').addEventListener('input', () => { clearTimeout(decTimer); decTimer = setTimeout(renderDecode, 180); });
+$('copyhint').addEventListener('click', () => copyText($('hint-out').value, $('hintcopied')));
+$('copydec').addEventListener('click', () => copyText($('decode-out').value, $('deccopied')));
+$('decsample').addEventListener('click', () => {
+  const recs = [
+    { name: 'Riley Brooks', score: 95, remote: true },
+    { name: 'Sam Rivera', score: 92, remote: true },
+    { name: 'Jordan Avery', score: 87, remote: false },
+  ];
+  $('decode-in').value = 'Here are the top performers:\\n' + tableEncode(recs) + '\\n\\nLet me know if you want the full list.';
+  renderDecode();
+});
+
 // upgrade to the exact tokenizer in the background; never block the UI on a network import
 import('https://esm.sh/gpt-tokenizer@3.4.0/model/gpt-4o')
-  .then(m => { tok = s => m.encode(s).length; tokCache.clear(); recompute(); })
+  .then(m => { tok = s => m.encode(s).length; tokCache.clear(); recompute(); renderDecode(); })
   .catch(() => { $('tokwarn').hidden = false; });
 </script>
 </body>

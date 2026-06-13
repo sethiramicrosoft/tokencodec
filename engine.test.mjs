@@ -1,5 +1,5 @@
 import { encode } from "gpt-tokenizer/model/gpt-4o";
-import { tableEncode, tableDecode, optimize } from "./engine.mjs";
+import { tableEncode, tableDecode, optimize, decodeTables } from "./engine.mjs";
 
 const tok = s => encode(s).length;
 const canon = v => Array.isArray(v) ? v.map(canon)
@@ -120,6 +120,52 @@ ok(pct >= 50, `realistic prompt is >=50% smaller (got ${pct}%)`);
 const tbl = optimized.slice(optimized.indexOf("@T1("));
 ok(eq(tableDecode(tbl), records), "embedded table round-trips to original records");
 console.log(`  realistic prompt: ${tok(prompt)} -> ${tok(optimized)} tokens (${pct}% smaller)`);
+
+// ---------- 9. decodeTables: the OUTPUT round-trip (receive-side inverse) ----------
+{
+  const data = [
+    { name: "Ada", score: 91, ok: true },
+    { name: "Bo, Jr.", score: 88, ok: false },   // comma forces quoting
+    { name: "Cy \"Q\"", score: 75, ok: true },    // embedded quotes
+  ];
+  const table = tableEncode(data);
+
+  // a) a model reply that wraps the table in prose -> JSON back, prose kept
+  const reply = "Here are the qualifying players:\n" + table + "\n\nLet me know if you want more.";
+  const decoded = decodeTables(reply);
+  ok(decoded.startsWith("Here are the qualifying players:"), "leading prose preserved");
+  ok(decoded.trimEnd().endsWith("Let me know if you want more."), "trailing prose preserved");
+  ok(!decoded.includes("@T1("), "table expanded out of the reply");
+  const m = decoded.match(/\[.*\]/s);
+  ok(m && eq(JSON.parse(m[0]), data), "expanded JSON equals the original records");
+
+  // b) plain prose with no table returned unchanged
+  const prose = "No tabular data here.\nJust two ordinary lines.";
+  ok(decodeTables(prose) === prose, "prose with no table returned unchanged");
+
+  // c) a malformed table is left exactly as written (never throws, never guesses)
+  const bad = "@T1(a:s,b:i)\n\"only-one-field\"";   // row too narrow
+  ok(decodeTables(bad) === bad, "malformed table left untouched");
+
+  // d) prose glued straight onto the last row (no blank line) is not swallowed
+  const glued = table + "\nThat is the full list.";
+  const dg = decodeTables(glued);
+  ok(dg.includes("That is the full list."), "glued-on prose survives");
+  const mg = dg.match(/\[.*\]/s);
+  ok(mg && eq(JSON.parse(mg[0]), data), "glued case still recovers every row");
+
+  // e) two tables in one reply both expand, interleaved prose intact
+  const two = "First:\n" + tableEncode([{ a: 1 }, { a: 2 }]) + "\n\nSecond:\n" + tableEncode([{ b: 9 }, { b: 8 }]);
+  const d2 = decodeTables(two);
+  ok(!d2.includes("@T1("), "both tables expanded");
+  ok(d2.includes("First:") && d2.includes("Second:"), "interleaved prose preserved");
+
+  // f) a lone header with no rows is NOT turned into [] (left as text)
+  ok(decodeTables("@T1(a:i)") === "@T1(a:i)", "lone header left as-is (no phantom empty array)");
+
+  // g) bare table decodes losslessly back to the original records
+  ok(eq(JSON.parse(decodeTables(table)), data), "bare table decodes losslessly");
+}
 
 console.log(`\nENGINE TESTS: ${pass} passed, ${fail} failed  ${fail === 0 ? "(bulletproof)" : "FAILED"}`);
 process.exit(fail ? 1 : 0);

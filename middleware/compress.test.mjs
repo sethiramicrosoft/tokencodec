@@ -1,5 +1,5 @@
 import { encode } from "gpt-tokenizer/model/gpt-4o";
-import { compressText, compressMessages, withCompression } from "./compress.mjs";
+import { compressText, compressMessages, withCompression, decodeResponse, withRoundTrip, OUTPUT_FORMAT_HINT } from "./compress.mjs";
 
 const tok = s => encode(s).length;
 let pass = 0, fail = 0;
@@ -64,6 +64,7 @@ const dataMsg = "Summarize this data:\n" + JSON.stringify(rows, null, 2);
 
 // 6. withCompression calls the send function with compressed messages
 let asyncDone = false;
+let roundTripDone = false;
 {
   const messages = [{ role: "user", content: dataMsg }];
   withCompression(messages, async (compressed) => {
@@ -75,10 +76,42 @@ let asyncDone = false;
   });
 }
 
+// 7. OUTPUT side: decodeResponse expands a model's @T1 reply back into JSON
+{
+  import("../engine.mjs").then(({ tableEncode }) => {
+    const recs = [{ city: "Oslo", pop: 700000 }, { city: "Bergen", pop: 280000 }];
+    const modelReply = "Here you go:\n" + tableEncode(recs);
+    const back = decodeResponse(modelReply);
+    ok(!back.includes("@T1("), "model's @T1 reply expanded to JSON");
+    ok(JSON.stringify(JSON.parse(back.match(/\[.*\]/s)[0])) === JSON.stringify(recs), "decoded reply equals the model's data");
+    ok(decodeResponse("just prose, no table") === "just prose, no table", "prose reply returned unchanged");
+  });
+}
+
+// 8. the output hint is a real, paste-able string that names the format
+ok(typeof OUTPUT_FORMAT_HINT === "string" && OUTPUT_FORMAT_HINT.includes("@T1("), "OUTPUT_FORMAT_HINT names the @T1 format");
+
+// 9. withRoundTrip: compress request + inject hint + decode the @T1 reply, end to end
+{
+  import("../engine.mjs").then(({ tableEncode }) => {
+    const recs = [{ id: 1, tag: "a" }, { id: 2, tag: "b" }];
+    withRoundTrip([{ role: "user", content: dataMsg }], async (compressed) => {
+      ok(compressed[0].role === "system" && compressed[0].content.includes("@T1("), "output hint injected as a system message");
+      ok(compressed[1].content.includes("@T1("), "request data still compressed");
+      return "Result:\n" + tableEncode(recs);   // the model answers in @T1
+    }, { tokenizer: tok }).then(({ text, stats }) => {
+      ok(!text.includes("@T1("), "round-trip decoded the model's @T1 reply");
+      ok(stats.saved > 0, "round-trip still reports input savings");
+      roundTripDone = true;
+    });
+  });
+}
+
 function finish() {
-  // give the withCompression promise a tick to resolve
+  // give the async promises a tick to resolve
   setTimeout(() => {
-    console.log(`\nMIDDLEWARE TESTS: ${pass} passed, ${fail} failed  ${fail === 0 && asyncDone ? "(bulletproof)" : (fail ? "FAILED" : "")}`);
+    const clean = fail === 0 && asyncDone && roundTripDone;
+    console.log(`\nMIDDLEWARE TESTS: ${pass} passed, ${fail} failed  ${clean ? "(bulletproof)" : (fail ? "FAILED" : "")}`);
     process.exit(fail ? 1 : 0);
-  }, 50);
+  }, 100);
 }

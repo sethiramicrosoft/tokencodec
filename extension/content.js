@@ -151,6 +151,47 @@ function tableDecode(text) {
   return out;
 }
 
+// Receive-side inverse of the table encoder. Scans free-form model OUTPUT for
+// embedded @T1(...) blocks and expands each one back into a JSON array, in
+// place. This is what makes "reply in @T1 to save output tokens" a real
+// round-trip instead of advice: the model emits a compact table, your app still
+// gets JSON. Anything that is not a valid table is left exactly as written - it
+// never throws, and never invents or drops data.
+function decodeTables(text, { space = 0 } = {}) {
+  if (typeof text !== "string" || !text.includes("@T")) return text;
+  const lines = text.split("\n");
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (!/^\s*@T\d+\(.*\)\s*$/.test(lines[i])) { out.push(lines[i]); i++; continue; }
+    const trimmed = lines[i].trimStart();
+    const indent = lines[i].slice(0, lines[i].length - trimmed.length);
+    const header = trimmed.trimEnd();
+    // Gather contiguous candidate rows: stop at a blank line, the next table
+    // header, or end of input.
+    let j = i + 1;
+    while (j < lines.length && lines[j].trim() !== "" && !/^\s*@T\d+\(/.test(lines[j])) j++;
+    // Largest block first, then shrink from the end. This recovers when prose is
+    // glued on with no blank-line separator: the longest valid prefix wins, and
+    // the rest is emitted untouched. Empty decodes (a lone header) are rejected.
+    let decoded = null, end = i + 1;
+    for (let k = j; k > i; k--) {
+      const bodyLines = lines.slice(i + 1, k).map(l => (l.startsWith(indent) ? l.slice(indent.length) : l));
+      try {
+        const v = tableDecode(header + "\n" + bodyLines.join("\n"));
+        if (v.length >= 1) { decoded = v; end = k; break; }
+      } catch { /* try fewer rows */ }
+    }
+    if (decoded) {
+      const json = JSON.stringify(decoded, null, space);
+      out.push(indent + (space ? json.replace(/\n/g, "\n" + indent) : json));
+      for (let r = end; r < j; r++) out.push(lines[r]);   // un-consumed trailing lines
+      i = j;
+    } else { out.push(lines[i]); i++; }
+  }
+  return out.join("\n");
+}
+
 // Find TOP-LEVEL JSON arrays only. An array opened while already inside another
 // `{`/`[` is left untouched, so we never splice a table into a containing object.
 // Single pass, O(n), with size/count caps.

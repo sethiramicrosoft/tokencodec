@@ -105,6 +105,29 @@ function sampleRecords() {
     ok(eq(tableDecode(extTbl), recs), "extension: shrink is lossless (decodes to original records)");
     ok(await extPage.locator('[role="status"]').first().isVisible(), "extension: savings toast shown");
 
+    // ---------- C. Output decode (the reply round-trip, for non-technical web users) ----------
+    const expectReply = [
+      { name: "Riley Brooks", score: 95, remote: true },
+      { name: "Sam Rivera", score: 92, remote: true },
+      { name: "Jordan Avery", score: 87, remote: false },
+    ];
+    // the paste-in instruction must name the format and the null token
+    const hintText = await page.inputValue("#hint-out");
+    ok(hintText.includes("@T1(") && hintText.includes("\\N"), "output: paste-in instruction names @T1 and the \\N null token");
+
+    await page.click("#decsample");
+    await page.waitForFunction(() => (document.getElementById("decode-out").value || "").includes("Riley Brooks"), { timeout: 5000 });
+    const decodedOut = await page.inputValue("#decode-out");
+    ok(!decodedOut.includes("@T1("), "output: the @T1 reply was expanded (no table marker left)");
+    const decArr = JSON.parse(decodedOut.match(/\[[\s\S]*\]/)[0]);
+    ok(eq(decArr, expectReply), "output: decoded reply equals the original records (lossless round-trip)");
+    const statsText = await page.textContent("#decode-stats");
+    ok(/fewer tokens|smaller/.test(statsText), "output: savings stat shown for the compact reply");
+
+    await page.click("#copydec");
+    await page.waitForTimeout(100);
+    ok(await page.locator("#deccopied").isVisible(), "output: copy readable version shows a confirmation");
+
     ok(errors.length === 0, "no console/page errors during browser run" + (errors.length ? " -> " + errors.join(" | ") : ""));
   } finally {
     await browser.close();
