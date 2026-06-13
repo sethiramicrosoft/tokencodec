@@ -146,20 +146,20 @@ device, nothing uploaded. It auto-redeploys whenever the web tool changes.
 
 ### What it looks like
 
-These are captured straight from the test run that drives the real web tool and the real
-extension in Chromium (`npm run screenshots`), so they show actual output, not mockups.
+These come straight from a test run that loads the **real unpacked extension** into
+Chromium and lets its content script act on a chat composer (`npm run screenshots`) -
+the same `content.js` that runs on chatgpt.com, claude.ai and gemini.google.com. They
+are the genuine extension, not mockups. The live chat sites need a login and block
+automation, so the shots use a local chat-style composer; the floating buttons, the
+in-place re-encode and the toast are all the actual extension.
 
-**The hosted page - paste a prompt, watch the bill drop:**
+**Before - you paste bloated JSON into the chat box. The extension adds two buttons, bottom-right:**
 
-![The TokenCodec web tool: a sample prompt shrunk from 2,139 to 633 tokens (70% smaller), with a per-request dollar saving and a plain-English breakdown of what changed.](docs/screenshots/web-input.png)
+![The TokenCodec browser extension over a chat composer: a pasted JSON array of eight orders fills the message box, with floating "Shrink prompt" and "Compact reply" buttons in the bottom-right corner.](docs/screenshots/extension-before.png)
 
-**Shrink the reply too - paste a compact `@T1` answer back and read it:**
+**After - one click on "Shrink prompt" re-encodes it in place to a compact `@T1` table, and a toast shows what you saved:**
 
-![The "Shrink the reply too" panel: a ready-to-paste instruction, a compact @T1 reply, and the decoded readable JSON with the tokens it saved.](docs/screenshots/web-output.png)
-
-**The browser extension - one click inside ChatGPT, Claude or Gemini:**
-
-![The browser extension: a prompt box re-encoded to a compact @T1 table in place, with a "Shrink prompt" button, a "Compact reply" button, and a toast reading "Shrunk ~72% (about 118 fewer tokens)".](docs/screenshots/extension.png)
+![After clicking Shrink prompt: the same eight orders are re-encoded in the message box as a compact @T1 table - the header @T1(id:i,customer:s,region:s,total:f,paid:b) and eight comma-separated rows - with a toast reading "Shrunk ~64% (about 152 fewer tokens)".](docs/screenshots/extension-after.png)
 
 ---
 
