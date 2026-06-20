@@ -186,7 +186,9 @@ https://sethiramicrosoft.github.io/tokencodec/
 | Approach | Ease | Saves tokens | Works with | Status |
 |---|---|---|---|---|
 | **Rules installer** | Easiest (one-time install) | Via behavior change (queries, not pastes) | All tools (including Copilot) | ✓ Working |
-| **Web interface** | Manual (copy-paste each time) | 50–70% on data | All tools | ✓ Working |
+| **Web interface** | Manual (copy-paste each time) | 50–70% on data at scale* | All tools | ✓ Working |
+
+**\*When compression helps**: The @T1 format reduces character count 50–70%, but pays off in tokens only at scale (100+ records). For small payloads, format overhead can increase token cost. **Use compression when pasting large datasets; use the rules installer for interactive coding.**
 
 
 ### The hosted page is live
