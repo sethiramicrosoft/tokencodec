@@ -10,6 +10,9 @@ import process from "node:process";
 
 import { DEFAULT_SESSION_PROMPT, proxyDefaults, proxyBaseUrl, sessionPromptText, startProxy } from "./proxy.mjs";
 
+const COPILOT_DEFAULT_MODEL = "gpt-5.4";
+const COPILOT_DEFAULT_WIRE_API = "responses";
+
 const PROFILES = {
   claude: {
     command: "claude",
@@ -39,9 +42,10 @@ const PROFILES = {
       COPILOT_PROVIDER_API_URL: `${proxyBaseUrl("127.0.0.1", port)}/v1`,
       COPILOT_PROVIDER_BASE_URL: `${proxyBaseUrl("127.0.0.1", port)}/v1`,
       COPILOT_PROVIDER_TYPE: "openai",
-      COPILOT_PROVIDER_WIRE_API: "completions",
+      COPILOT_PROVIDER_WIRE_API: COPILOT_DEFAULT_WIRE_API,
       GITHUB_COPILOT_USE_TOKEN_EXCHANGE: "false",
       COPILOT_AUTH_MODE: "github-oauth",
+      COPILOT_MODEL: COPILOT_DEFAULT_MODEL,
     }),
     sessionPrompt: DEFAULT_SESSION_PROMPT,
   },
@@ -50,6 +54,17 @@ const PROFILES = {
 export function buildWrapPlan(profileName, port, env = process.env) {
   const profile = PROFILES[profileName];
   if (!profile) throw new Error(`unknown profile: ${profileName}`);
+  const envOut = {
+    ...profile.env(port),
+  };
+  if (profileName === "copilot") {
+    envOut.COPILOT_MODEL = env.COPILOT_MODEL || COPILOT_DEFAULT_MODEL;
+    envOut.COPILOT_PROVIDER_WIRE_API = env.COPILOT_PROVIDER_WIRE_API || COPILOT_DEFAULT_WIRE_API;
+  }
+  const sessionPrompt = sessionPromptText(env);
+  if (sessionPrompt) {
+    envOut.TOKENCODEC_SESSION_PROMPT = sessionPrompt;
+  }
   return {
     profile: profileName,
     command: env.TOKENCODEC_COMMAND || profile.command,
@@ -59,10 +74,7 @@ export function buildWrapPlan(profileName, port, env = process.env) {
       port,
       upstream: env.TOKENCODEC_UPSTREAM_URL || profile.upstream,
     },
-    env: {
-      ...profile.env(port),
-      TOKENCODEC_SESSION_PROMPT: sessionPromptText(env) || profile.sessionPrompt || DEFAULT_SESSION_PROMPT,
-    },
+    env: envOut,
   };
 }
 

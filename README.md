@@ -177,6 +177,13 @@ again. TokenCodec uses the CLI's own login.
 
 If you do not want the session contract, set `TOKENCODEC_SESSION_PROMPT=off` before
 running the wrapper.
+If you want a different model, pass it through to the CLI or set the model env var.
+Examples:
+
+```bash
+npm run wrap -- copilot -- --model gpt-4o
+COPILOT_MODEL=gpt-4o npm run wrap -- copilot
+```
 
 ### The hosted page is live
 

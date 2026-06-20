@@ -35,6 +35,17 @@ const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   ok(plan.env.GITHUB_COPILOT_API_URL === proxyBaseUrl("127.0.0.1", 8787), "wrap: copilot plan exposes a local GitHub Copilot API URL");
   ok(plan.env.OPENAI_TARGET_API_URL === proxyBaseUrl("127.0.0.1", 8787), "wrap: copilot plan exposes the local OpenAI target URL");
   ok(plan.env.COPILOT_PROVIDER_BASE_URL.endsWith("/v1"), "wrap: copilot plan exposes the provider base URL");
+  ok(plan.env.COPILOT_MODEL === "gpt-5.4", "wrap: copilot plan provides a default model");
+  ok(plan.env.COPILOT_PROVIDER_WIRE_API === "responses", "wrap: copilot plan uses the GPT-5 responses API");
+}
+
+{
+  const plan = buildWrapPlan("copilot", 8787, {
+    COPILOT_MODEL: "gpt-4o",
+    COPILOT_PROVIDER_WIRE_API: "completions",
+  });
+  ok(plan.env.COPILOT_MODEL === "gpt-4o", "wrap: copilot plan respects an explicit model override");
+  ok(plan.env.COPILOT_PROVIDER_WIRE_API === "completions", "wrap: copilot plan respects an explicit wire-api override");
 }
 
 {
