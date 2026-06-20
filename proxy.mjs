@@ -26,64 +26,14 @@ export async function getCopilotSessionToken() {
     return copilotSessionCache.token;
   }
 
-  // Try multiple possible config paths
-  const homedir = os.homedir();
-  const possiblePaths = [
-    path.join(homedir, ".config", "github-copilot", "hosts.json"),
-    path.join(homedir, ".github-copilot", "hosts.json"),
-    path.join(process.env.APPDATA || homedir, "GitHub Copilot", "hosts.json"),
-  ];
-
-  let oauthToken = null;
-  let foundPath = null;
-
-  for (const configPath of possiblePaths) {
-    try {
-      const content = fs.readFileSync(configPath, "utf-8");
-      const config = JSON.parse(content);
-      oauthToken = config?.["github.com"]?.oauth_token;
-      if (oauthToken) {
-        foundPath = configPath;
-        break;
-      }
-    } catch (err) {
-      // Continue to next path
-    }
-  }
-
-  if (!oauthToken) {
-    console.error(`[TokenCodec] Could not find Copilot oauth_token in any of: ${possiblePaths.join(", ")}`);
-    console.error(`[TokenCodec] Have you run 'copilot auth login' yet?`);
-    return null;
-  }
-
-  // Exchange for session token
-  try {
-    const res = await fetch("https://api.github.com/copilot_internal/v2/token", {
-      method: "GET",
-      headers: {
-        "Authorization": `token ${oauthToken}`,
-        "Accept": "application/json",
-      },
-    });
-
-    if (!res.ok) {
-      const body = await res.text();
-      console.error(`[TokenCodec] Token exchange failed: ${res.status} ${body.substring(0, 100)}`);
-      return null;
-    }
-
-    const data = await res.json();
-    const sessionToken = data.token;
-    const expiresAt = new Date(data.expires_at).getTime();
-
-    copilotSessionCache = { token: sessionToken, expiresAt };
-    console.log(`[TokenCodec] Got Copilot session token (expires in ${Math.round((expiresAt - Date.now()) / 1000)}s)`);
-    return sessionToken;
-  } catch (err) {
-    console.error(`[TokenCodec] Token exchange error: ${err.message}`);
-    return null;
-  }
+  // The Copilot CLI v1.0+ stores tokens in encrypted storage we cannot access.
+  // Instead, when the CLI runs through the proxy, it will attempt to get a token.
+  // We cannot inject a token here because we don't have access to the stored credentials.
+  // The proxy should allow the CLI to do its own auth and just pass through requests.
+  
+  console.error(`[TokenCodec] ⚠️ Copilot CLI v1.0+ uses encrypted token storage`);
+  console.error(`[TokenCodec] Proxy cannot extract tokens. Use the web interface or rules installer instead.`);
+  return null;
 }
 
 export const DEFAULT_SESSION_PROMPT =

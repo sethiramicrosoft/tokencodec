@@ -146,11 +146,42 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
   (and decode `@T1` replies) at runtime.
 - **You just want the lossless table primitive**: import the **engine**.
 
-### Quick start: intercept a CLI prompt
+### Quick start: automatic compression for all your AI tools
 
-**Status:** CLI wrapper works for **Claude** and **Codex** (OpenAI standard auth). **GitHub Copilot CLI (v1.0+)** uses encrypted token storage that isn't accessible to external proxies — use the web page or rules installer instead.
+The **rules installer** is the easiest path. It teaches TokenCodec compression rules to your AI tools so compression happens automatically, no copying, no proxy, no extra steps.
 
-#### For Claude and Codex (recommended):
+#### For any AI tool (Copilot, Claude Code, Codex, Cursor, Aider, Gemini):
+
+```bash
+cd /path/to/your-project
+node /path/to/tokencodec/install.mjs
+```
+
+Then use your AI tool **normally**. It will automatically:
+- Query data instead of pasting it (169x–16,170x fewer tokens on datasets)
+- Read only what it needs, not whole files
+- Return compact tables, not pretty-printed JSON
+- Keep your chat history short
+
+Example with Copilot:
+```bash
+copilot -p "I have employee data in employees.csv. Count by department using a query, do not paste the whole file."
+```
+
+Copilot will:
+1. Read the file 
+2. Write a query (not paste all 1000 rows)
+3. Return a compact table with the answer
+
+**Zero configuration.** Zero extra work. Just works.
+
+### Quick start: intercept a CLI prompt (manual compression)
+
+If you want to compress a prompt yourself before sending it, use the web page or wrapper:
+
+**Status:** CLI wrapper works for **Claude** and **Codex** (OpenAI standard auth). **GitHub Copilot CLI (v1.0+)** and other tools support the rules installer instead.
+
+#### For Claude and Codex:
 
 ```bash
 git clone https://github.com/sethiramicrosoft/tokencodec.git
@@ -169,21 +200,6 @@ Then ask a question with JSON data for best compression. You'll see:
 ```
 [TokenCodec] Compression: 402 → 193 tokens (52% saved)
 ```
-
-#### For GitHub Copilot:
-
-**Note:** The newer Copilot CLI (v1.0+) stores authentication tokens in encrypted local storage that isn't accessible to external processes. The proxy wrapper cannot intercept these tokens.
-
-**Workarounds:**
-
-1. **Use the web page (recommended):** https://sethiramicrosoft.github.io/tokencodec/ — paste your prompt, optimize, copy the result.
-2. **Use Claude or Codex** through the wrapper (they support standard Bearer token forwarding).
-3. **Use TokenCodec rules installer** for automatic compression in your tools:
-   ```bash
-   cd /path/to/your-project
-   node /path/to/tokencodec/install.mjs
-   ```
-   Then use Copilot normally—it will use the installed compression rules automatically.
 
 #### Customize the wrapper
 
