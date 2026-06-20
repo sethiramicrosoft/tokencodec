@@ -7,14 +7,16 @@
     "tokencodec": "install.mjs"
   },
   "scripts": {
-    "test": "node engine.test.mjs && node install.test.mjs && node middleware/compress.test.mjs",
+    "test": "node engine.test.mjs && node install.test.mjs && node middleware/compress.test.mjs && node proxy.test.mjs",
     "test:e2e": "node e2e/accuracy.node.test.mjs && node e2e/claims.test.mjs && node e2e/accuracy.browser.test.mjs",
     "test:all": "npm test && npm run test:e2e",
     "build:web": "node build-web.mjs",
     "build:ext": "node extension/build-extension.mjs",
     "build": "node build-web.mjs && node extension/build-extension.mjs",
     "screenshots": "node docs/capture-screenshots.mjs",
-    "install:rules": "node install.mjs"
+    "install:rules": "node install.mjs",
+    "proxy": "node proxy.mjs",
+    "wrap": "node wrap.mjs"
   },
   "keywords": [
     "llm",

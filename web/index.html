@@ -30,6 +30,9 @@
   .card .n { font-size: 1.7rem; font-weight: 700; }
   .card .k { color: #c2c9d6; font-size: .85rem; }
   .save .n { color: #54d98c; }
+  .panel { background: #161922; border: 1px solid #2a2f3a; border-radius: 12px; padding: 16px; margin: 18px 0; }
+  .panel h2 { margin: 0 0 8px; }
+  .panel p { margin: 0; }
   ul { padding-left: 20px; } li { margin: 4px 0; }
   .flag { background: #2a1f12; border: 1px solid #8a6326; border-radius: 8px; padding: 12px; margin: 8px 0; }
   .warn { background: #2a1212; border: 1px solid #8a2a2a; border-radius: 8px; padding: 10px; margin: 12px 0; }
@@ -43,6 +46,25 @@
   <h1>TokenCodec</h1>
   <p class="tagline">The lossless prompt and data codec for LLMs. <a href="https://github.com/sethiramicrosoft/tokencodec" target="_blank" rel="noopener">View source on GitHub</a></p>
   <p class="sub">Paste a prompt. See the tokens you are wasting - tokens are the word-chunks AI models charge for, so fewer tokens means a smaller bill. You get back a shorter version that says exactly the same thing. Everything runs in your browser; nothing is uploaded.</p>
+
+  <section class="panel" aria-labelledby="wrap-h">
+    <h2 id="wrap-h">Browser helper</h2>
+    <p class="sub">Choose the CLI you plan to use, shrink the prompt, then copy the compressed version with a short next-step note. This page prepares the prompt; the local proxy wrapper is the interception path.</p>
+    <div class="row">
+      <div>
+        <label for="wrap-target" style="margin:0 0 6px">Target CLI</label>
+        <select id="wrap-target">
+          <option value="copilot" selected>GitHub Copilot CLI</option>
+          <option value="claude">Claude Code</option>
+          <option value="codex">OpenAI Codex CLI</option>
+        </select>
+      </div>
+      <button id="copywrap" type="button" class="secondary">Copy wrapper prompt</button>
+      <button id="copywrapnote" type="button" class="secondary">Copy next step</button>
+      <span id="wrapcopied" role="status" hidden></span>
+    </div>
+    <p id="wrapnote" class="sub" style="margin-top:10px"></p>
+  </section>
 
   <div id="tokwarn" class="warn" role="alert" hidden><strong>Heads up:</strong> could not load the exact tokenizer (offline?). Showing a rough estimate (characters / 4) - usually within about 30% on data-heavy prompts, looser on short prose.</div>
 
@@ -481,6 +503,21 @@ function optimize(text) {
 const $ = id => document.getElementById(id);
 let tok = s => Math.ceil([...s].length / 4); // deterministic local fallback, used until (and if) the exact tokenizer loads
 
+const WRAP_TARGETS = {
+  copilot: {
+    name: 'GitHub Copilot CLI',
+    note: 'Open GitHub Copilot CLI, paste the compressed prompt, then press Enter.',
+  },
+  claude: {
+    name: 'Claude Code',
+    note: 'Open Claude Code, paste the compressed prompt, then press Enter.',
+  },
+  codex: {
+    name: 'OpenAI Codex CLI',
+    note: 'Open OpenAI Codex CLI, paste the compressed prompt, then press Enter.',
+  },
+};
+
 // small LRU so we never re-tokenize the same string twice
 const tokCache = new Map();
 function tokCached(s) {
@@ -499,6 +536,14 @@ function renderMoney() {
   $('money').textContent = '$' + saved1k.toFixed(2);
 }
 
+function renderWrapper() {
+  const target = WRAP_TARGETS[$('wrap-target').value] || WRAP_TARGETS.copilot;
+  const hasInput = $('prompt').value.trim().length > 0;
+  $('wrapnote').textContent = hasInput
+    ? target.note + ' The button below copies the same compressed prompt that the optimizer shows.'
+    : target.note + ' Paste a prompt below to generate the compressed version.';
+}
+
 function recompute() {
   const text = $('prompt').value;
   const hasInput = text.trim().length > 0;
@@ -515,6 +560,7 @@ function recompute() {
   $('saved').textContent = pct + '%';
   $('out').value = optimized;
   renderMoney();
+  renderWrapper();
 
   $('passes').innerHTML = passes.length
     ? '<h2>What changed</h2><ul>' + passes.map(p => '<li><strong>' + p.label + '</strong> - ' + p.detail + '</li>').join('') + '</ul>'
@@ -528,6 +574,7 @@ function scheduleRecompute() { clearTimeout(timer); timer = setTimeout(recompute
 
 $('prompt').addEventListener('input', scheduleRecompute);
 $('model').addEventListener('change', renderMoney); // price change is just arithmetic; no re-optimize
+$('wrap-target').addEventListener('change', renderWrapper);
 async function copyText(text, note) {
   try { await navigator.clipboard.writeText(text); note.textContent = 'Copied to clipboard'; }
   catch { note.textContent = 'Copy failed - select the text and copy manually.'; }
@@ -535,6 +582,11 @@ async function copyText(text, note) {
   setTimeout(() => { note.hidden = true; }, 2500);
 }
 $('copy').addEventListener('click', () => copyText($('out').value, $('copied')));
+$('copywrap').addEventListener('click', () => copyText($('out').value, $('wrapcopied')));
+$('copywrapnote').addEventListener('click', () => {
+  const target = WRAP_TARGETS[$('wrap-target').value] || WRAP_TARGETS.copilot;
+  copyText(target.note, $('wrapcopied'));
+});
 $('sample').addEventListener('click', () => {
   const recs = [];
   const names = ['Jordan Avery','Sam Rivera','Casey Nguyen','Riley Brooks','Drew Patel'];
@@ -548,6 +600,7 @@ $('sample').addEventListener('click', () => {
   $('prompt').value = 'Could you please look at the data below and tell me the average score per department.\n\n' + JSON.stringify(recs, null, 2);
   recompute();
 });
+renderWrapper();
 recompute(); // render immediately with the fallback so the UI works even if the CDN is slow or blocked
 
 // ---- OUTPUT side: expand a compact @T1 reply back into readable JSON ----

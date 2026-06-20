@@ -20,6 +20,10 @@ It comes in pieces you can use together or alone:
   Code, Copilot, Cursor, Codex, Gemini, Aider) to stop wasting tokens by default.
 - **The browser optimizer** - paste a prompt, see the savings, copy it back. Live
   at the link above; runs entirely in your browser.
+- **The browser helper** - pick Copilot, Claude Code, or Codex, then use the same
+  browser page to prepare a compressed prompt and the next step for that CLI.
+- **The local proxy wrapper** - start a localhost proxy and launch supported CLIs
+  through it so prompts are compressed before the model sees them.
 - **The browser extension + API middleware** - shrink prompts inside ChatGPT,
   Claude and Gemini, or in your own backend at runtime.
 
@@ -123,6 +127,8 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
 | **Rules installer** | Anyone using an AI coding agent | `install.mjs` |
 | **Lossless engine** (JSON + NDJSON -> table) | Importable anywhere | `engine.mjs` |
 | **In-browser optimizer** | Anyone, no coding | `web/` (run `node serve.mjs`) |
+| **Browser helper** | CLI users who want a friendly front door | `web/` (same page) |
+| **Local proxy wrapper** | CLI users who want interception | `proxy.mjs` + `wrap.mjs` |
 | **Browser extension** | ChatGPT / Claude / Gemini users | `extension/` |
 | **API-side compressor** | Production apps burning tokens at runtime | `middleware/` |
 | **Reproducible proofs** | Skeptics & researchers | `proofs/` |
@@ -132,6 +138,8 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
 - **You just chat** (paste data into ChatGPT, Claude or Gemini): use the **hosted page**
   (zero install) or the **extension** (same codec, but it lives in the chat so you skip
   the copy-paste). Either one. The page also decodes a compact reply back for you.
+- **You want interception** (run GitHub Copilot CLI, Claude Code or Codex through
+  TokenCodec): use `node wrap.mjs <profile>` or `npm run wrap -- <profile>`.
 - **You use an AI coding agent** (Copilot CLI, Codex, Claude Code, Cursor): run the
   **rules installer** once. From then on it is automatic - there is no button to click.
 - **You build an app that calls an LLM API**: use the **middleware** to compress requests

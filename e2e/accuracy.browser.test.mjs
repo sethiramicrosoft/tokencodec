@@ -89,6 +89,15 @@ function sampleRecords() {
     await page.waitForTimeout(100);
     ok(await page.locator("#copied").isVisible(), "web: copy shows a confirmation");
 
+    // wrapper mode gives a target-specific next step and copy feedback
+    await page.selectOption("#wrap-target", "codex");
+    await page.waitForTimeout(50);
+    const wrapNote = await page.textContent("#wrapnote");
+    ok(/Open OpenAI Codex CLI/.test(wrapNote || ""), "web: wrapper note updates for the selected CLI");
+    await page.click("#copywrapnote");
+    await page.waitForTimeout(100);
+    ok(await page.locator("#wrapcopied").isVisible(), "web: wrapper note copy shows a confirmation");
+
     // ---------- B. Extension ----------
     const recs = Array.from({ length: 8 }, (_, i) => ({ id: i, region: ["APAC", "EMEA", "NA"][i % 3], score: 80 + i, ok: i % 2 === 0 }));
     const prompt = "Average score by region for this data:\n" + JSON.stringify(recs, null, 2);
