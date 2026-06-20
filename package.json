@@ -16,7 +16,8 @@
     "screenshots": "node docs/capture-screenshots.mjs",
     "install:rules": "node install.mjs",
     "proxy": "node proxy.mjs",
-    "wrap": "node wrap.mjs"
+    "wrap": "node wrap.mjs",
+    "copilot": "node copilot-wrapper.mjs"
   },
   "keywords": [
     "llm",

@@ -187,8 +187,27 @@ https://sethiramicrosoft.github.io/tokencodec/
 - See compression in real-time
 - Copy the compressed result
 
-#### Option 2: Transparent tunnel proxy (for CLI tools with data)
-The Copilot CLI authenticates itself at runtime. To avoid breaking auth, use a transparent CONNECT tunnel that never rewrites requests:
+#### Option 2: Copilot wrapper (Copilot CLI)
+
+The simplest way to use Copilot with TokenCodec. The wrapper starts the transparent tunnel proxy and launches Copilot automatically:
+
+```bash
+npm run copilot -- -p "What is 2+2?"
+npm run copilot -- -i "Help me debug this error" --allow-all
+```
+
+The wrapper:
+1. Starts a transparent CONNECT tunnel on localhost
+2. Sets `HTTPS_PROXY` to point at the tunnel
+3. Launches Copilot with all your arguments
+4. Copilot authenticates itself inside the tunnel
+5. All requests route through the tunnel transparently
+
+**Status:** Working. Tested with Copilot CLI 1.0.64-1.
+
+#### Option 3: Transparent tunnel proxy (manual)
+
+If you want more control, start the tunnel manually in one terminal and use `HTTPS_PROXY` in another:
 
 ```bash
 # In one terminal: start the tunnel
@@ -201,7 +220,7 @@ copilot -p "analyze this JSON: {...}"
 
 **Status:** Experimental. The tunnel layer works, but Copilot's token validation may timeout. See options below if this doesn't work.
 
-#### Option 3: Proxy wrapper (Claude/Codex)
+#### Option 4: Proxy wrapper (Claude/Codex)
 
 ```bash
 npm run wrap -- claude -- -p "analyze this: {...}"
@@ -212,14 +231,15 @@ Works for Claude and Codex (they support standard HTTP_PROXY forwarding).
 
 ---
 
-### How the three approaches differ
+### How the four approaches differ
 
-| Approach | Ease | Saves tokens | Works with | Auth complexity |
-|---|---|---|---|---|
-| **Rules installer** | Easiest (one-time install) | Via behavior change (queries, not pastes) | All tools | None |
-| **Web interface** | Manual (copy-paste each time) | 50–70% on data | All tools | None |
-| **Tunnel proxy** | Setup required | 50–70% on data | Copilot (experimental), all others | Copilot does own auth |
-| **CLI wrapper** | Setup required | 50–70% on data | Claude, Codex | Inherited from CLI |
+| Approach | Ease | Saves tokens | Works with | Auth complexity | Status |
+|---|---|---|---|---|---|
+| **Rules installer** | Easiest (one-time install) | Via behavior change (queries, not pastes) | All tools | None | ✓ Working |
+| **Web interface** | Manual (copy-paste each time) | 50–70% on data | All tools | None | ✓ Working |
+| **Copilot wrapper** | `npm run copilot` | 50–70% on data | Copilot CLI | CLI handles it | ✓ Working |
+| **Tunnel proxy** | Setup required | 50–70% on data | Copilot, others | CLI handles it | ✓ Working (manual) |
+| **CLI wrapper** | Setup required | 50–70% on data | Claude, Codex | Inherited from CLI | ✓ Working |
 
 #### Customize the wrapper
 
