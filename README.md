@@ -127,8 +127,7 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
 | **Rules installer** | Anyone using an AI coding agent | `install.mjs` |
 | **Lossless engine** (JSON + NDJSON -> table) | Importable anywhere | `engine.mjs` |
 | **In-browser optimizer** | Anyone, no coding | `web/` (run `node serve.mjs`) |
-| **Browser helper** | CLI users who want a friendly front door | `web/` (same page) |
-| **Local proxy wrapper** | CLI users who want interception | `proxy.mjs` + `wrap.mjs` |
+| **Local proxy wrapper** | Claude/Codex CLI users | `proxy.mjs` + `wrap.mjs` |
 | **Browser extension** | ChatGPT / Claude / Gemini users | `extension/` |
 | **API-side compressor** | Production apps burning tokens at runtime | `middleware/` |
 | **Reproducible proofs** | Skeptics & researchers | `proofs/` |
@@ -187,59 +186,24 @@ https://sethiramicrosoft.github.io/tokencodec/
 - See compression in real-time
 - Copy the compressed result
 
-#### Option 2: Copilot wrapper (Copilot CLI)
-
-The simplest way to use Copilot with TokenCodec. The wrapper starts the transparent tunnel proxy and launches Copilot automatically:
-
-```bash
-npm run copilot -- -p "What is 2+2?"
-npm run copilot -- -i "Help me debug this error" --allow-all
-```
-
-The wrapper:
-1. Starts a transparent CONNECT tunnel on localhost
-2. Sets `HTTPS_PROXY` to point at the tunnel
-3. Launches Copilot with all your arguments
-4. Copilot authenticates itself inside the tunnel
-5. All requests route through the tunnel transparently
-
-**Status:** Working. Tested with Copilot CLI 1.0.64-1.
-
-#### Option 3: Transparent tunnel proxy (manual)
-
-If you want more control, start the tunnel manually in one terminal and use `HTTPS_PROXY` in another:
-
-```bash
-# In one terminal: start the tunnel
-node tunnel-proxy.mjs --port 8787
-
-# In another: use Copilot with HTTPS_PROXY set
-set HTTPS_PROXY=http://127.0.0.1:8787
-copilot -p "analyze this JSON: {...}"
-```
-
-**Status:** Experimental. The tunnel layer works, but Copilot's token validation may timeout. See options below if this doesn't work.
-
-#### Option 4: Proxy wrapper (Claude/Codex)
+#### Option 2: Proxy wrapper (Claude/Codex)
 
 ```bash
 npm run wrap -- claude -- -p "analyze this: {...}"
 npm run wrap -- codex -- -p "analyze this: {...}"
 ```
 
-Works for Claude and Codex (they support standard HTTP_PROXY forwarding).
+Works for Claude and Codex (they support standard HTTP_PROXY forwarding). Automatically compresses requests 50–70%.
 
 ---
 
-### How the four approaches differ
+### How the two approaches differ
 
-| Approach | Ease | Saves tokens | Works with | Auth complexity | Status |
-|---|---|---|---|---|---|
-| **Rules installer** | Easiest (one-time install) | Via behavior change (queries, not pastes) | All tools | None | ✓ Working |
-| **Web interface** | Manual (copy-paste each time) | 50–70% on data | All tools | None | ✓ Working |
-| **Copilot wrapper** | `npm run copilot` | 50–70% on data | Copilot CLI | CLI handles it | ✓ Working |
-| **Tunnel proxy** | Setup required | 50–70% on data | Copilot, others | CLI handles it | ✓ Working (manual) |
-| **CLI wrapper** | Setup required | 50–70% on data | Claude, Codex | Inherited from CLI | ✓ Working |
+| Approach | Ease | Saves tokens | Works with | Status |
+|---|---|---|---|---|
+| **Rules installer** | Easiest (one-time install) | Via behavior change (queries, not pastes) | All tools (including Copilot) | ✓ Working |
+| **Web interface** | Manual (copy-paste each time) | 50–70% on data | All tools | ✓ Working |
+| **CLI wrapper** | Setup required | 50–70% on data | Claude, Codex | ✓ Working |
 
 #### Customize the wrapper
 
