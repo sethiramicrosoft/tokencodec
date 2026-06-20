@@ -8,8 +8,83 @@
 import http from "node:http";
 import { Readable } from "node:stream";
 import { URL } from "node:url";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import { compressMessages, compressText } from "./middleware/compress.mjs";
+
+// ---- Copilot OAuth Token Exchange ----
+// Copilot uses a two-stage auth: store gho_xxx, exchange for session token, inject headers.
+// Read stored token, exchange at GitHub API, cache with TTL, refresh before expiry.
+
+let copilotSessionCache = { token: null, expiresAt: 0 };
+
+export async function getCopilotSessionToken() {
+  // Return cached token if still valid (refresh 60s before expiry)
+  if (copilotSessionCache.token && copilotSessionCache.expiresAt > Date.now() + 60000) {
+    return copilotSessionCache.token;
+  }
+
+  // Try multiple possible config paths
+  const homedir = os.homedir();
+  const possiblePaths = [
+    path.join(homedir, ".config", "github-copilot", "hosts.json"),
+    path.join(homedir, ".github-copilot", "hosts.json"),
+    path.join(process.env.APPDATA || homedir, "GitHub Copilot", "hosts.json"),
+  ];
+
+  let oauthToken = null;
+  let foundPath = null;
+
+  for (const configPath of possiblePaths) {
+    try {
+      const content = fs.readFileSync(configPath, "utf-8");
+      const config = JSON.parse(content);
+      oauthToken = config?.["github.com"]?.oauth_token;
+      if (oauthToken) {
+        foundPath = configPath;
+        break;
+      }
+    } catch (err) {
+      // Continue to next path
+    }
+  }
+
+  if (!oauthToken) {
+    console.error(`[TokenCodec] Could not find Copilot oauth_token in any of: ${possiblePaths.join(", ")}`);
+    console.error(`[TokenCodec] Have you run 'copilot auth login' yet?`);
+    return null;
+  }
+
+  // Exchange for session token
+  try {
+    const res = await fetch("https://api.github.com/copilot_internal/v2/token", {
+      method: "GET",
+      headers: {
+        "Authorization": `token ${oauthToken}`,
+        "Accept": "application/json",
+      },
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      console.error(`[TokenCodec] Token exchange failed: ${res.status} ${body.substring(0, 100)}`);
+      return null;
+    }
+
+    const data = await res.json();
+    const sessionToken = data.token;
+    const expiresAt = new Date(data.expires_at).getTime();
+
+    copilotSessionCache = { token: sessionToken, expiresAt };
+    console.log(`[TokenCodec] Got Copilot session token (expires in ${Math.round((expiresAt - Date.now()) / 1000)}s)`);
+    return sessionToken;
+  } catch (err) {
+    console.error(`[TokenCodec] Token exchange error: ${err.message}`);
+    return null;
+  }
+}
 
 export const DEFAULT_SESSION_PROMPT =
   "Lead with the outcome. Do not overplan. Act once you have enough information. " +
@@ -143,16 +218,18 @@ async function forwardRequest(req, res, upstreamBase, mode) {
   const upstreamUrl = new URL(req.url || "/", upstreamBase);
   const forwarded = filteredHeaders(req.headers);
   
-  // Debug: log ALL request headers for inspection
-  console.log(`[TokenCodec] ${req.method} ${upstreamUrl.pathname}`);
-  console.log(`[TokenCodec]   Incoming headers: ${Object.keys(req.headers).join(", ")}`);
-  console.log(`[TokenCodec]   Forwarded headers: ${Object.keys(forwarded).join(", ")}`);
-  if (req.headers.authorization) {
-    const authVal = String(req.headers.authorization);
-    console.log(`[TokenCodec]   Auth (${authVal.length} bytes): ${authVal.substring(0, 80)}${authVal.length > 80 ? '...' : ''}`);
-  }
-  if (!forwarded.authorization && req.headers.authorization) {
-    console.log(`[TokenCodec]   ⚠️ Authorization header was FILTERED OUT!`);
+  // Special handling for GitHub Copilot: inject session token and required headers
+  if (upstreamBase.includes("api.githubcopilot.com")) {
+    const sessionToken = await getCopilotSessionToken();
+    if (sessionToken) {
+      forwarded.Authorization = `Bearer ${sessionToken}`;
+      forwarded["Copilot-Integration-Id"] = "vscode-chat";
+      forwarded["Editor-Version"] = "vscode/1.90.0";
+      forwarded["Editor-Plugin-Version"] = "copilot-chat/0.16.0";
+      console.log(`[TokenCodec] Injected Copilot auth headers`);
+    } else {
+      console.error(`[TokenCodec] ⚠️ Could not get Copilot session token`);
+    }
   }
 
   const upstreamRes = await fetch(upstreamUrl, {

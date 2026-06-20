@@ -148,7 +148,7 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
 
 ### Quick start: intercept a CLI prompt
 
-**Status:** CLI wrapper works for **Claude** and **Codex** (OpenAI standard auth). GitHub Copilot CLI has proprietary OAuth token exchange that doesn't route through HTTP proxies.
+**Status:** CLI wrapper works for **Claude**, **Codex**, and **GitHub Copilot** (requires `copilot auth login` first).
 
 #### For Claude and Codex (recommended):
 
@@ -172,17 +172,40 @@ Then ask a question with JSON data for best compression. You'll see:
 
 #### For GitHub Copilot:
 
-GitHub Copilot's OAuth token exchange is bound to direct HTTPS connections and doesn't support HTTP proxy forwarding. Workarounds:
+**Setup (one-time):** First, authenticate the Copilot CLI:
 
-1. **Use the web page:** https://sethiramicrosoft.github.io/tokencodec/ — paste your prompt, optimize, copy the result.
-2. **Use Claude or Codex** through the wrapper (they support standard Bearer token forwarding).
+```bash
+copilot auth login
+```
 
-Why Copilot doesn't work through the proxy:
-- Copilot CLI exchanges the stored GitHub token for a session token via `https://api.githubcopilot.com`
-- When the proxy redirects that request to `http://127.0.0.1:PORT`, the token exchange fails
-- The resulting auth header is empty, and GitHub's API rejects it as "badly formatted"
+This stores your OAuth token locally. TokenCodec's proxy will read and use it automatically.
 
-This is not a bug in TokenCodec — it's a design choice in Copilot's CLI to prevent token interception.
+Then use the wrapper:
+
+```bash
+npm run wrap -- copilot -- -p "your prompt here"
+```
+
+Or for interactive mode:
+
+```bash
+npm run wrap -- copilot
+```
+
+**How it works:**
+
+GitHub Copilot uses a two-stage OAuth flow:
+
+1. **Storage:** `copilot auth login` stores a long-lived GitHub token (`gho_...`) locally.
+2. **Exchange:** When making requests, the token is exchanged at `https://api.github.com/copilot_internal/v2/token` for a short-lived session token (~25–30 min TTL).
+3. **Injection:** The session token is sent as `Authorization: Bearer ...` along with required editor headers to `https://api.githubcopilot.com`.
+
+TokenCodec's proxy automates steps 1–3 internally:
+- Reads the stored OAuth token from your system
+- Performs the token exchange before each request
+- Caches the session token and refreshes it before expiry
+- Injects the session token and editor headers into upstream requests
+- Compresses your prompt before GitHub sees it
 
 #### Customize the wrapper
 
