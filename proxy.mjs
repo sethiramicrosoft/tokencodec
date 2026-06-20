@@ -143,11 +143,16 @@ async function forwardRequest(req, res, upstreamBase, mode) {
   const upstreamUrl = new URL(req.url || "/", upstreamBase);
   const forwarded = filteredHeaders(req.headers);
   
-  // Debug: log auth header status
-  const hasAuth = !!forwarded.authorization;
-  const authLen = forwarded.authorization?.length || 0;
-  if (req.url?.includes("/chat")) {
-    console.log(`[TokenCodec] ${req.method} ${req.url.substring(0, 80)}... | Auth: ${hasAuth ? `${authLen} bytes` : 'MISSING'}`);
+  // Debug: log ALL request headers for inspection
+  console.log(`[TokenCodec] ${req.method} ${upstreamUrl.pathname}`);
+  console.log(`[TokenCodec]   Incoming headers: ${Object.keys(req.headers).join(", ")}`);
+  console.log(`[TokenCodec]   Forwarded headers: ${Object.keys(forwarded).join(", ")}`);
+  if (req.headers.authorization) {
+    const authVal = String(req.headers.authorization);
+    console.log(`[TokenCodec]   Auth (${authVal.length} bytes): ${authVal.substring(0, 80)}${authVal.length > 80 ? '...' : ''}`);
+  }
+  if (!forwarded.authorization && req.headers.authorization) {
+    console.log(`[TokenCodec]   ⚠️ Authorization header was FILTERED OUT!`);
   }
 
   const upstreamRes = await fetch(upstreamUrl, {
@@ -158,7 +163,11 @@ async function forwardRequest(req, res, upstreamBase, mode) {
 
   if (!upstreamRes.ok) {
     const errorBody = await upstreamRes.text();
-    console.error(`[TokenCodec] Upstream error ${upstreamRes.status}: ${errorBody.substring(0, 200)}`);
+    console.error(`[TokenCodec] ERROR ${upstreamRes.status}: ${errorBody.substring(0, 200)}`);
+    // On error, write headers and body separately to avoid double-send
+    res.writeHead(upstreamRes.status, filteredHeaders(Object.fromEntries(upstreamRes.headers.entries())));
+    res.end(errorBody);
+    return;
   }
 
   res.writeHead(upstreamRes.status, filteredHeaders(Object.fromEntries(upstreamRes.headers.entries())));
@@ -196,6 +205,10 @@ export function createProxyServer({ host, port, upstream, mode } = {}) {
       res.end(`tokencodec proxy error: ${err instanceof Error ? err.message : String(err)}`);
     }
   });
+
+  // Increase header size limits for auth tokens and large payloads
+  server.maxHeaderSize = 16 * 1024 * 1024; // 16 MB
+  server.headersTimeout = 30000;
 
   return { server, state };
 }

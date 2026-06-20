@@ -148,7 +148,7 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
 
 ### Quick start: intercept a CLI prompt
 
-**Note:** The CLI wrapper works best with **Claude** and **Codex** (OpenAI). GitHub Copilot has additional auth checks that prevent HTTP proxy interception.
+**Status:** CLI wrapper works for **Claude** and **Codex** (OpenAI standard auth). GitHub Copilot CLI has proprietary OAuth token exchange that doesn't route through HTTP proxies.
 
 #### For Claude and Codex (recommended):
 
@@ -165,26 +165,24 @@ npm run wrap -- claude
 npm run wrap -- codex
 ```
 
-Then ask a question with JSON data for best compression:
-
-```json
-[
-  {"name":"John","age":28,"role":"engineer","status":"active"},
-  {"name":"Sarah","age":32,"role":"senior_engineer","status":"active"}
-]
-```
-
-**You should see:**
+Then ask a question with JSON data for best compression. You'll see:
 ```
 [TokenCodec] Compression: 402 → 193 tokens (52% saved)
 ```
 
 #### For GitHub Copilot:
 
-The CLI wrapper has auth limitations with Copilot's API. For now, use:
+GitHub Copilot's OAuth token exchange is bound to direct HTTPS connections and doesn't support HTTP proxy forwarding. Workarounds:
 
-1. **The web page directly:** https://sethiramicrosoft.github.io/tokencodec/ — paste your prompt, optimize, copy the result, and paste into Copilot.
-2. **Coming soon:** A browser-integrated wrapper that compresses before you hit send.
+1. **Use the web page:** https://sethiramicrosoft.github.io/tokencodec/ — paste your prompt, optimize, copy the result.
+2. **Use Claude or Codex** through the wrapper (they support standard Bearer token forwarding).
+
+Why Copilot doesn't work through the proxy:
+- Copilot CLI exchanges the stored GitHub token for a session token via `https://api.githubcopilot.com`
+- When the proxy redirects that request to `http://127.0.0.1:PORT`, the token exchange fails
+- The resulting auth header is empty, and GitHub's API rejects it as "badly formatted"
+
+This is not a bug in TokenCodec — it's a design choice in Copilot's CLI to prevent token interception.
 
 #### Customize the wrapper
 
