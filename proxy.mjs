@@ -11,6 +11,13 @@ import { URL } from "node:url";
 
 import { compressMessages, compressText } from "./middleware/compress.mjs";
 
+export const DEFAULT_SESSION_PROMPT =
+  "Lead with the outcome. Do not overplan. Act once you have enough information. " +
+  "Before reporting progress, verify it against tool output. Delegate independent " +
+  "subtasks and keep working while they run. Pause only for destructive actions, " +
+  "real scope changes, or user-only input. Avoid extra refactors or abstractions. " +
+  "Record useful lessons.";
+
 const HOP_BY_HOP = new Set([
   "connection",
   "keep-alive",
@@ -43,6 +50,7 @@ export function compressJsonPayload(payload) {
   const out = { ...payload };
   const flags = [];
   let changed = false;
+  const sessionPrompt = sessionPromptText();
 
   const compressStringField = key => {
     if (typeof out[key] !== "string" || out[key].length === 0) return;
@@ -56,8 +64,10 @@ export function compressJsonPayload(payload) {
 
   const compressMessageArray = key => {
     if (!Array.isArray(out[key])) return;
-    const result = compressMessages(out[key]);
-    if (result.saved > 0 || result.flags.length > 0) {
+    const withPrompt = prependSessionPrompt(out[key], sessionPrompt);
+    const injected = withPrompt !== out[key];
+    const result = compressMessages(withPrompt);
+    if (injected || result.saved > 0 || result.flags.length > 0) {
       out[key] = result.messages;
       changed = true;
       flags.push(...result.flags);
@@ -71,6 +81,22 @@ export function compressJsonPayload(payload) {
   compressStringField("content");
 
   return { payload: out, changed, flags };
+}
+
+export function sessionPromptText(env = process.env) {
+  const raw = env.TOKENCODEC_SESSION_PROMPT;
+  if (raw === undefined || raw === null || String(raw).trim() === "") return DEFAULT_SESSION_PROMPT;
+  const normalized = String(raw).trim().toLowerCase();
+  if (normalized === "0" || normalized === "false" || normalized === "off" || normalized === "disable") return "";
+  return String(raw);
+}
+
+export function prependSessionPrompt(messages, prompt) {
+  if (!prompt || !Array.isArray(messages)) return messages;
+  if (messages.some(m => m && m.role === "system" && typeof m.content === "string" && m.content === prompt)) {
+    return messages;
+  }
+  return [{ role: "system", content: prompt }, ...messages];
 }
 
 async function readBody(req) {

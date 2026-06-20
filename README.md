@@ -168,10 +168,15 @@ Do this exactly:
    ```
 
 4. Type your prompt in the CLI as usual. TokenCodec runs in front of the request
-   before it reaches the model.
+   before it reaches the model. It also injects a short session contract that says
+   to lead with the outcome, avoid overplanning, verify claims against tool output,
+   and keep working while independent subtasks run.
 
 If the CLI says you are not signed in, log in to that CLI first, then run the wrapper
 again. TokenCodec uses the CLI's own login.
+
+If you do not want the session contract, set `TOKENCODEC_SESSION_PROMPT=off` before
+running the wrapper.
 
 ### The hosted page is live
 

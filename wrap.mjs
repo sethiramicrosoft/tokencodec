@@ -8,23 +8,26 @@
 import { spawn } from "node:child_process";
 import process from "node:process";
 
-import { proxyDefaults, proxyBaseUrl, startProxy } from "./proxy.mjs";
+import { DEFAULT_SESSION_PROMPT, proxyDefaults, proxyBaseUrl, sessionPromptText, startProxy } from "./proxy.mjs";
 
 const PROFILES = {
   claude: {
     command: "claude",
     upstream: "https://api.anthropic.com",
     env: port => ({ ANTHROPIC_BASE_URL: proxyBaseUrl("127.0.0.1", port) }),
+    sessionPrompt: DEFAULT_SESSION_PROMPT,
   },
   codex: {
     command: "codex",
     upstream: "https://api.openai.com",
     env: port => ({ OPENAI_BASE_URL: `${proxyBaseUrl("127.0.0.1", port)}/v1` }),
+    sessionPrompt: DEFAULT_SESSION_PROMPT,
   },
   openai: {
     command: "openai",
     upstream: "https://api.openai.com",
     env: port => ({ OPENAI_BASE_URL: `${proxyBaseUrl("127.0.0.1", port)}/v1` }),
+    sessionPrompt: DEFAULT_SESSION_PROMPT,
   },
   copilot: {
     command: "copilot",
@@ -40,6 +43,7 @@ const PROFILES = {
       GITHUB_COPILOT_USE_TOKEN_EXCHANGE: "false",
       COPILOT_AUTH_MODE: "github-oauth",
     }),
+    sessionPrompt: DEFAULT_SESSION_PROMPT,
   },
 };
 
@@ -57,6 +61,7 @@ export function buildWrapPlan(profileName, port, env = process.env) {
     },
     env: {
       ...profile.env(port),
+      TOKENCODEC_SESSION_PROMPT: sessionPromptText(env) || profile.sessionPrompt || DEFAULT_SESSION_PROMPT,
     },
   };
 }

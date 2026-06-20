@@ -1,4 +1,4 @@
-import { compressJsonPayload, proxyBaseUrl } from "./proxy.mjs";
+import { DEFAULT_SESSION_PROMPT, compressJsonPayload, prependSessionPrompt, proxyBaseUrl, sessionPromptText } from "./proxy.mjs";
 import { buildWrapPlan } from "./wrap.mjs";
 
 let pass = 0, fail = 0;
@@ -13,7 +13,7 @@ const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   };
   const { payload, changed } = compressJsonPayload(body);
   ok(changed, "proxy: messages payload is compressed");
-  ok(payload.messages[0].content.includes("@T1("), "proxy: compressed message content contains @T1 table");
+  ok(payload.messages.some(m => typeof m.content === "string" && m.content.includes("@T1(")), "proxy: compressed message content contains @T1 table");
 }
 
 {
@@ -26,7 +26,7 @@ const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 {
   const plan = buildWrapPlan("codex", 8787, { TOKENCODEC_COMMAND: "codex" });
   ok(plan.command === "codex", "wrap: codex uses the codex command");
-  ok(eq(plan.env, { OPENAI_BASE_URL: `${proxyBaseUrl("127.0.0.1", 8787)}/v1` }), "wrap: codex points OpenAI traffic at the local proxy");
+  ok(plan.env.OPENAI_BASE_URL === `${proxyBaseUrl("127.0.0.1", 8787)}/v1`, "wrap: codex points OpenAI traffic at the local proxy");
 }
 
 {
@@ -35,6 +35,19 @@ const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   ok(plan.env.GITHUB_COPILOT_API_URL === proxyBaseUrl("127.0.0.1", 8787), "wrap: copilot plan exposes a local GitHub Copilot API URL");
   ok(plan.env.OPENAI_TARGET_API_URL === proxyBaseUrl("127.0.0.1", 8787), "wrap: copilot plan exposes the local OpenAI target URL");
   ok(plan.env.COPILOT_PROVIDER_BASE_URL.endsWith("/v1"), "wrap: copilot plan exposes the provider base URL");
+}
+
+{
+  const messages = [{ role: "user", content: "hello" }];
+  const injected = prependSessionPrompt(messages, DEFAULT_SESSION_PROMPT);
+  ok(injected.length === 2, "proxy: session prompt is prepended to message arrays");
+  ok(injected[0].role === "system" && injected[0].content === DEFAULT_SESSION_PROMPT, "proxy: session prompt uses the expected contract");
+  ok(prependSessionPrompt(messages, "") === messages, "proxy: empty session prompt leaves messages unchanged");
+}
+
+{
+  ok(sessionPromptText({ TOKENCODEC_SESSION_PROMPT: "off" }) === "", "proxy: session prompt can be disabled");
+  ok(sessionPromptText({ TOKENCODEC_SESSION_PROMPT: "custom prompt" }) === "custom prompt", "proxy: session prompt can be overridden");
 }
 
 console.log(`\nPROXY TESTS: ${pass} passed, ${fail} failed  ${fail === 0 ? "(bulletproof)" : "FAILED"}`);
