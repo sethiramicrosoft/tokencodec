@@ -20,10 +20,6 @@ It comes in pieces you can use together or alone:
   Code, Copilot, Cursor, Codex, Gemini, Aider) to stop wasting tokens by default.
 - **The browser optimizer** - paste a prompt, see the savings, copy it back. Live
   at the link above; runs entirely in your browser.
-- **The browser helper** - pick Copilot, Claude Code, or Codex, then use the same
-  browser page to prepare a compressed prompt and the next step for that CLI.
-- **The local proxy wrapper** - start a localhost proxy and launch supported CLIs
-  through it so prompts are compressed before the model sees them.
 - **The browser extension + API middleware** - shrink prompts inside ChatGPT,
   Claude and Gemini, or in your own backend at runtime.
 
@@ -127,7 +123,6 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
 | **Rules installer** | Anyone using an AI coding agent | `install.mjs` |
 | **Lossless engine** (JSON + NDJSON -> table) | Importable anywhere | `engine.mjs` |
 | **In-browser optimizer** | Anyone, no coding | `web/` (run `node serve.mjs`) |
-| **Local proxy wrapper** | Claude/Codex CLI users | `proxy.mjs` + `wrap.mjs` |
 | **Browser extension** | ChatGPT / Claude / Gemini users | `extension/` |
 | **API-side compressor** | Production apps burning tokens at runtime | `middleware/` |
 | **Reproducible proofs** | Skeptics & researchers | `proofs/` |
@@ -137,8 +132,6 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
 - **You just chat** (paste data into ChatGPT, Claude or Gemini): use the **hosted page**
   (zero install) or the **extension** (same codec, but it lives in the chat so you skip
   the copy-paste). Either one. The page also decodes a compact reply back for you.
-- **You want interception** (run GitHub Copilot CLI, Claude Code or Codex through
-  TokenCodec): use `node wrap.mjs <profile>` or `npm run wrap -- <profile>`.
 - **You use an AI coding agent** (Copilot CLI, Codex, Claude Code, Cursor): run the
   **rules installer** once. From then on it is automatic - there is no button to click.
 - **You build an app that calls an LLM API**: use the **middleware** to compress requests
@@ -180,20 +173,11 @@ Copilot will:
 
 If you have **JSON/CSV data to paste**, TokenCodec compresses it 50–70% **losslessly** before sending.
 
-#### Option 1: Web interface (manual, fastest to try)
+#### The web interface (manual, no setup)
 https://sethiramicrosoft.github.io/tokencodec/
 - Paste your prompt with JSON/CSV data
 - See compression in real-time
 - Copy the compressed result
-
-#### Option 2: Proxy wrapper (Claude/Codex)
-
-```bash
-npm run wrap -- claude -- -p "analyze this: {...}"
-npm run wrap -- codex -- -p "analyze this: {...}"
-```
-
-Works for Claude and Codex (they support standard HTTP_PROXY forwarding). Automatically compresses requests 50–70%.
 
 ---
 
@@ -203,21 +187,6 @@ Works for Claude and Codex (they support standard HTTP_PROXY forwarding). Automa
 |---|---|---|---|---|
 | **Rules installer** | Easiest (one-time install) | Via behavior change (queries, not pastes) | All tools (including Copilot) | ✓ Working |
 | **Web interface** | Manual (copy-paste each time) | 50–70% on data | All tools | ✓ Working |
-| **CLI wrapper** | Setup required | 50–70% on data | Claude, Codex | ✓ Working |
-
-#### Customize the wrapper
-
-If you don't want the session contract, disable it:
-
-```bash
-TOKENCODEC_SESSION_PROMPT=off npm run wrap -- claude
-```
-
-To use a different model:
-
-```bash
-npm run wrap -- claude -- --model claude-3-5-sonnet
-```
 
 
 ### The hosted page is live
