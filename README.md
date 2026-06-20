@@ -172,13 +172,41 @@ Do this exactly:
    to lead with the outcome, avoid overplanning, verify claims against tool output,
    and keep working while independent subtasks run.
 
-If the CLI says you are not signed in, log in to that CLI first, then run the wrapper
-again. TokenCodec uses the CLI's own login.
+#### Prerequisites
+Before running TokenCodec, you must be logged in to the CLI you want to wrap:
 
-If you do not want the session contract, set `TOKENCODEC_SESSION_PROMPT=off` before
-running the wrapper.
-If you want a different model, pass it through to the CLI or set the model env var.
-Examples:
+```bash
+# Log in to Copilot
+copilot auth login
+
+# Log in to Claude
+claude auth login
+
+# Log in to Codex (OpenAI)
+codex auth login
+```
+
+If you see "Authorization header is badly formatted" when you run TokenCodec, it usually means you are not authenticated. Stop the wrapper and log in first.
+
+#### Verify it's working
+
+When you ask the CLI a question through TokenCodec, you should see compression stats in the console:
+
+```
+[TokenCodec] Compression: 2450 → 1089 tokens (55.5% saved)
+```
+
+If you do not see this, the wrapper may not have intercepted the request correctly.
+
+#### Customize the wrapper
+
+If you do not want the session contract, set `TOKENCODEC_SESSION_PROMPT=off`:
+
+```bash
+TOKENCODEC_SESSION_PROMPT=off npm run wrap -- copilot
+```
+
+If you want a different model, pass it through to the CLI or set the model env var:
 
 ```bash
 npm run wrap -- copilot -- --model gpt-4o

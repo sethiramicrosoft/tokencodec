@@ -118,12 +118,19 @@ async function forwardRequest(req, res, upstreamBase, mode) {
   const rawBody = await readBody(req);
   const contentType = String(req.headers["content-type"] || "").toLowerCase();
   let body = rawBody;
+  let beforeTokens = 0, afterTokens = 0, saved = 0;
 
   if (rawBody && contentType.includes("json")) {
     try {
       const parsed = JSON.parse(rawBody);
       const compressed = compressJsonPayload(parsed);
-      if (compressed.changed) body = JSON.stringify(compressed.payload);
+      if (compressed.changed) {
+        beforeTokens = Math.ceil(rawBody.length / 4);
+        afterTokens = Math.ceil(JSON.stringify(compressed.payload).length / 4);
+        saved = beforeTokens - afterTokens;
+        body = JSON.stringify(compressed.payload);
+        console.log(`[TokenCodec] Compression: ${beforeTokens} → ${afterTokens} tokens (${Math.round((saved/beforeTokens)*100)}% saved)`);
+      }
     } catch {
       // If the request body is not valid JSON, forward it untouched.
     }
@@ -135,6 +142,11 @@ async function forwardRequest(req, res, upstreamBase, mode) {
     headers: filteredHeaders(req.headers),
     body: req.method === "GET" || req.method === "HEAD" ? undefined : body,
   });
+
+  if (!upstreamRes.ok) {
+    const errorBody = await upstreamRes.text();
+    console.error(`[TokenCodec] Upstream error ${upstreamRes.status}: ${errorBody.substring(0, 200)}`);
+  }
 
   res.writeHead(upstreamRes.status, filteredHeaders(Object.fromEntries(upstreamRes.headers.entries())));
   if (!upstreamRes.body) {
