@@ -175,31 +175,51 @@ Copilot will:
 
 **Zero configuration.** Zero extra work. Just works.
 
-### Quick start: intercept a CLI prompt (manual compression)
+---
 
-If you want to compress a prompt yourself before sending it, use the web page or wrapper:
+### For structured data compression (lossless codec)
 
-**Status:** CLI wrapper works for **Claude** and **Codex** (OpenAI standard auth). **GitHub Copilot CLI (v1.0+)** and other tools support the rules installer instead.
+If you have **JSON/CSV data to paste**, TokenCodec compresses it 50–70% **losslessly** before sending.
 
-#### For Claude and Codex:
+#### Option 1: Web interface (manual, fastest to try)
+https://sethiramicrosoft.github.io/tokencodec/
+- Paste your prompt with JSON/CSV data
+- See compression in real-time
+- Copy the compressed result
+
+#### Option 2: Transparent tunnel proxy (for CLI tools with data)
+The Copilot CLI authenticates itself at runtime. To avoid breaking auth, use a transparent CONNECT tunnel that never rewrites requests:
 
 ```bash
-git clone https://github.com/sethiramicrosoft/tokencodec.git
-cd tokencodec
-npm install
+# In one terminal: start the tunnel
+node tunnel-proxy.mjs --port 8787
 
-# Log in first
-claude auth login    # or: codex auth login
-
-# Run through the wrapper
-npm run wrap -- claude
-npm run wrap -- codex
+# In another: use Copilot with HTTPS_PROXY set
+set HTTPS_PROXY=http://127.0.0.1:8787
+copilot -p "analyze this JSON: {...}"
 ```
 
-Then ask a question with JSON data for best compression. You'll see:
+**Status:** Experimental. The tunnel layer works, but Copilot's token validation may timeout. See options below if this doesn't work.
+
+#### Option 3: Proxy wrapper (Claude/Codex)
+
+```bash
+npm run wrap -- claude -- -p "analyze this: {...}"
+npm run wrap -- codex -- -p "analyze this: {...}"
 ```
-[TokenCodec] Compression: 402 → 193 tokens (52% saved)
-```
+
+Works for Claude and Codex (they support standard HTTP_PROXY forwarding).
+
+---
+
+### How the three approaches differ
+
+| Approach | Ease | Saves tokens | Works with | Auth complexity |
+|---|---|---|---|---|
+| **Rules installer** | Easiest (one-time install) | Via behavior change (queries, not pastes) | All tools | None |
+| **Web interface** | Manual (copy-paste each time) | 50–70% on data | All tools | None |
+| **Tunnel proxy** | Setup required | 50–70% on data | Copilot (experimental), all others | Copilot does own auth |
+| **CLI wrapper** | Setup required | 50–70% on data | Claude, Codex | Inherited from CLI |
 
 #### Customize the wrapper
 
