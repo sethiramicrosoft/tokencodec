@@ -146,6 +146,33 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
   (and decode `@T1` replies) at runtime.
 - **You just want the lossless table primitive**: import the **engine**.
 
+### Quick start: intercept a CLI prompt
+
+Do this exactly:
+
+1. Install **Node.js** and the CLI you want to use (`copilot`, `claude`, or `codex`).
+2. Clone TokenCodec and open the folder:
+
+   ```bash
+   git clone https://github.com/sethiramicrosoft/tokencodec.git
+   cd tokencodec
+   npm install
+   ```
+
+3. Start the CLI through TokenCodec:
+
+   ```bash
+   npm run wrap -- claude
+   npm run wrap -- codex
+   npm run wrap -- copilot
+   ```
+
+4. Type your prompt in the CLI as usual. TokenCodec runs in front of the request
+   before it reaches the model.
+
+If the CLI says you are not signed in, log in to that CLI first, then run the wrapper
+again. TokenCodec uses the CLI's own login.
+
 ### The hosted page is live
 
 The in-browser optimizer is published (free GitHub Pages) at
