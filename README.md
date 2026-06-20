@@ -148,7 +148,7 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
 
 ### Quick start: intercept a CLI prompt
 
-**Status:** CLI wrapper works for **Claude**, **Codex**, and **GitHub Copilot** (requires `copilot auth login` first).
+**Status:** CLI wrapper works for **Claude** and **Codex** (OpenAI standard auth). **GitHub Copilot CLI (v1.0+)** uses encrypted token storage that isn't accessible to external proxies — use the web page or rules installer instead.
 
 #### For Claude and Codex (recommended):
 
@@ -172,40 +172,18 @@ Then ask a question with JSON data for best compression. You'll see:
 
 #### For GitHub Copilot:
 
-**Setup (one-time):** First, authenticate the Copilot CLI:
+**Note:** The newer Copilot CLI (v1.0+) stores authentication tokens in encrypted local storage that isn't accessible to external processes. The proxy wrapper cannot intercept these tokens.
 
-```bash
-copilot auth login
-```
+**Workarounds:**
 
-This stores your OAuth token locally. TokenCodec's proxy will read and use it automatically.
-
-Then use the wrapper:
-
-```bash
-npm run wrap -- copilot -- -p "your prompt here"
-```
-
-Or for interactive mode:
-
-```bash
-npm run wrap -- copilot
-```
-
-**How it works:**
-
-GitHub Copilot uses a two-stage OAuth flow:
-
-1. **Storage:** `copilot auth login` stores a long-lived GitHub token (`gho_...`) locally.
-2. **Exchange:** When making requests, the token is exchanged at `https://api.github.com/copilot_internal/v2/token` for a short-lived session token (~25–30 min TTL).
-3. **Injection:** The session token is sent as `Authorization: Bearer ...` along with required editor headers to `https://api.githubcopilot.com`.
-
-TokenCodec's proxy automates steps 1–3 internally:
-- Reads the stored OAuth token from your system
-- Performs the token exchange before each request
-- Caches the session token and refreshes it before expiry
-- Injects the session token and editor headers into upstream requests
-- Compresses your prompt before GitHub sees it
+1. **Use the web page (recommended):** https://sethiramicrosoft.github.io/tokencodec/ — paste your prompt, optimize, copy the result.
+2. **Use Claude or Codex** through the wrapper (they support standard Bearer token forwarding).
+3. **Use TokenCodec rules installer** for automatic compression in your tools:
+   ```bash
+   cd /path/to/your-project
+   node /path/to/tokencodec/install.mjs
+   ```
+   Then use Copilot normally—it will use the installed compression rules automatically.
 
 #### Customize the wrapper
 
