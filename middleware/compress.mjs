@@ -88,10 +88,10 @@ export async function withCompression(messages, send, opts = {}) {
 export const OUTPUT_FORMAT_HINT =
   "When your answer is a list of records that all share the same fields, reply " +
   "with a single TokenCodec @T1 table instead of JSON, to save output tokens. " +
-  "Format: a header line @T1(col:type,...) where type is s=string i=int f=float " +
-  "b=bool, then one comma-separated row per record, strings double-quoted, null " +
-  "written as \\N, and nothing after the last row. Use it only for uniform " +
-  "tabular data; answer normally (prose) for everything else.";
+  "Format: a header line '@T1 col1 int col2 string col3 float ...' where types are " +
+  "int, string, float, or bool, then one tab-separated row per record, strings " +
+  "double-quoted, null written as \\N, and nothing after the last row. " +
+  "Use it only for uniform tabular data; answer normally (prose) for everything else.";
 
 // Receive-side: expand any @T1 tables the model emitted back into JSON, in place.
 // Safe on ordinary prose (returned unchanged); never throws, never invents data.

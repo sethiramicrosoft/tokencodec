@@ -46,11 +46,11 @@ console.log(`  fuzz: ${fuzzRun} convertible arrays round-tripped, ${fuzzFails} f
 {
   const input = 'config = {"users":[{"a":1},{"a":2}],"ok":true}';
   const { optimized } = optimize(input);
-  ok(!optimized.includes("@T1("), "nested-in-object array must not be table-spliced");
+  ok(!optimized.includes("@T1 "), "nested-in-object array must not be table-spliced");
   ok(optimized.includes('"users"'), "containing object preserved");
 }
 // a genuine top-level array still converts
-ok(optimize('[{"a":1},{"a":2},{"a":3}]\n' + 'x'.repeat(50)).optimized.includes("@T1("), "top-level array still converts");
+ok(optimize('[{"a":1},{"a":2},{"a":3}]\n' + 'x'.repeat(50)).optimized.includes("@T1 "), "top-level array still converts");
 
 // ---------- 3. __proto__ key (data-engineer Critical) ----------
 {
@@ -65,13 +65,13 @@ ok(tableEncode([{ x: Infinity }]) === null, "Infinity rejected");
 ok(Object.is(tableDecode(tableEncode([{ n: -0 }]))[0].n, -0), "-0 preserved");
 
 // ---------- 5. decoder validation (data-engineer) ----------
-throws(() => tableDecode("@T1(x:z)\n1"), "unknown type tag rejected");
-throws(() => tableDecode('@T2(x:s)\n"a"'), "unsupported version rejected");
-throws(() => tableDecode('@T1(a:s,b:s)\n"x"'), "short row rejected");
-throws(() => tableDecode('@T1(a:s)\n"x","y"'), "long row rejected");
-throws(() => tableDecode("@T1(x:b)\n2"), "bad bool cell rejected");
-throws(() => tableDecode("@T1(x:s)\nhello"), "unquoted string cell rejected");
-ok(eq(tableDecode("@T1(a:s)"), []), "header-only (zero rows) decodes to []");
+throws(() => tableDecode("@T1 x unknown\n1"), "unknown type tag rejected");
+throws(() => tableDecode('@T2 x string\n"a"'), "unsupported version rejected");
+throws(() => tableDecode('@T1 a string b string\n"x"'), "short row rejected");
+throws(() => tableDecode('@T1 a string\n"x" "y"'), "long row rejected");
+throws(() => tableDecode("@T1 x bool\n2"), "bad bool cell rejected");
+throws(() => tableDecode("@T1 x string\nhello"), "unquoted string cell rejected");
+ok(eq(tableDecode("@T1 a string"), []), "header-only (zero rows) decodes to []");
 
 // ---------- 6. control-char fencing / prompt-injection safety ----------
 {
@@ -91,17 +91,17 @@ ok(optimize("Do not do the following: rm -rf").optimized.includes("the following
   const ndjson = recsND.map(r => JSON.stringify(r)).join("\n");
   const wrapped = "Here are the logs:\n" + ndjson + "\nWhat is the most common level?";
   const { optimized } = optimize(wrapped);
-  ok(optimized.includes("@T1("), "NDJSON block converted to a table");
+  ok(optimized.includes("@T1 "), "NDJSON block converted to a table");
   ok(tok(optimized) < tok(wrapped), "NDJSON optimization reduces tokens");
-  const tbl = optimized.slice(optimized.indexOf("@T1("), optimized.indexOf("\nWhat is"));
+  const tbl = optimized.slice(optimized.indexOf("@T1 "), optimized.indexOf("\nWhat is"));
   ok(eq(tableDecode(tbl), recsND), "NDJSON block round-trips to original records");
   // prose around the block is preserved
   ok(optimized.includes("Here are the logs:") && optimized.includes("most common level"), "prose around NDJSON preserved");
 }
 // fewer than 3 lines is left alone (not worth a header)
-ok(!optimize('{"a":1}\n{"a":2}').optimized.includes("@T1("), "2-line NDJSON left untouched");
+ok(!optimize('{"a":1}\n{"a":2}').optimized.includes("@T1 "), "2-line NDJSON left untouched");
 // non-uniform keys are not mis-grouped
-ok(!optimize('{"a":1}\n{"b":2}\n{"c":3}').optimized.includes("@T1("), "NDJSON with differing keys not converted");
+ok(!optimize('{"a":1}\n{"b":2}\n{"c":3}').optimized.includes("@T1 "), "NDJSON with differing keys not converted");
 
 // ---------- 8. realistic prompt savings ----------
 const records = [];
@@ -117,7 +117,7 @@ const prompt = "Could you please look at the data below and list which employees
 const { optimized } = optimize(prompt);
 const pct = Math.round(100 * (tok(prompt) - tok(optimized)) / tok(prompt));
 ok(pct >= 50, `realistic prompt is >=50% smaller (got ${pct}%)`);
-const tbl = optimized.slice(optimized.indexOf("@T1("));
+const tbl = optimized.slice(optimized.indexOf("@T1 "));
 ok(eq(tableDecode(tbl), records), "embedded table round-trips to original records");
 console.log(`  realistic prompt: ${tok(prompt)} -> ${tok(optimized)} tokens (${pct}% smaller)`);
 
@@ -170,14 +170,14 @@ console.log(`  realistic prompt: ${tok(prompt)} -> ${tok(optimized)} tokens (${p
 // ---------- 10. decode hardening (fleet TD-2: prompt-injection-reviewer + security-auditor) ----------
 {
   // __proto__ column name rejected on decode (symmetric with encode); never pollutes
-  throws(() => tableDecode('@T1(__proto__:s)\n"x"'), "decode rejects a __proto__ column name");
-  ok(decodeTables('@T1(__proto__:s)\n"x"') === '@T1(__proto__:s)\n"x"', "decodeTables leaves a __proto__ table untouched (no pollution path)");
+  throws(() => tableDecode('@T1 __proto__ string\n"x"'), "decode rejects a __proto__ column name");
+  ok(decodeTables('@T1 __proto__ string\n"x"') === '@T1 __proto__ string\n"x"', "decodeTables leaves a __proto__ table untouched (no pollution path)");
 
   // integer columns stay lossless: non-integers and out-of-safe-range values are refused
-  throws(() => tableDecode("@T1(n:i)\n1.5"), "decode refuses a non-integer in an i column");
-  throws(() => tableDecode("@T1(n:i)\n9007199254740993"), "decode refuses an unsafe-range integer (would silently round)");
-  ok(eq(tableDecode("@T1(n:i)\n42"), [{ n: 42 }]), "decode still accepts a safe integer");
-  ok(eq(tableDecode("@T1(n:f)\n1.5"), [{ n: 1.5 }]), "decode still accepts a float in an f column");
+  throws(() => tableDecode("@T1 n int\n1.5"), "decode refuses a non-integer in an i column");
+  throws(() => tableDecode("@T1 n int\n9007199254740993"), "decode refuses an unsafe-range integer (would silently round)");
+  ok(eq(tableDecode("@T1 n int\n42"), [{ n: 42 }]), "decode still accepts a safe integer");
+  ok(eq(tableDecode("@T1 n float\n1.5"), [{ n: 1.5 }]), "decode still accepts a float in an f column");
 
   // a large valid table still round-trips through decodeTables (cap does not break the happy path)
   const big = Array.from({ length: 300 }, (_, k) => ({ id: k, ok: k % 2 === 0 }));
