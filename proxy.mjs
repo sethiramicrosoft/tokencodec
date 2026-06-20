@@ -109,7 +109,11 @@ function filteredHeaders(headers) {
   const out = {};
   for (const [key, value] of Object.entries(headers)) {
     const lower = key.toLowerCase();
-    if (!HOP_BY_HOP.has(lower) && lower !== "host" && lower !== "content-length") out[key] = value;
+    // Preserve all headers except hop-by-hop and content-length (fetch will set it)
+    if (!HOP_BY_HOP.has(lower) && lower !== "host" && lower !== "content-length") {
+      // Use original case for the key
+      out[key] = value;
+    }
   }
   return out;
 }
@@ -137,9 +141,18 @@ async function forwardRequest(req, res, upstreamBase, mode) {
   }
 
   const upstreamUrl = new URL(req.url || "/", upstreamBase);
+  const forwarded = filteredHeaders(req.headers);
+  
+  // Debug: log auth header status
+  const hasAuth = !!forwarded.authorization;
+  const authLen = forwarded.authorization?.length || 0;
+  if (req.url?.includes("/chat")) {
+    console.log(`[TokenCodec] ${req.method} ${req.url.substring(0, 80)}... | Auth: ${hasAuth ? `${authLen} bytes` : 'MISSING'}`);
+  }
+
   const upstreamRes = await fetch(upstreamUrl, {
     method: req.method,
-    headers: filteredHeaders(req.headers),
+    headers: forwarded,
     body: req.method === "GET" || req.method === "HEAD" ? undefined : body,
   });
 

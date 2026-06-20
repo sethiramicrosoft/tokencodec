@@ -148,70 +148,58 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
 
 ### Quick start: intercept a CLI prompt
 
-Do this exactly:
+**Note:** The CLI wrapper works best with **Claude** and **Codex** (OpenAI). GitHub Copilot has additional auth checks that prevent HTTP proxy interception.
 
-1. Install **Node.js** and the CLI you want to use (`copilot`, `claude`, or `codex`).
-2. Clone TokenCodec and open the folder:
-
-   ```bash
-   git clone https://github.com/sethiramicrosoft/tokencodec.git
-   cd tokencodec
-   npm install
-   ```
-
-3. Start the CLI through TokenCodec:
-
-   ```bash
-   npm run wrap -- claude
-   npm run wrap -- codex
-   npm run wrap -- copilot
-   ```
-
-4. Type your prompt in the CLI as usual. TokenCodec runs in front of the request
-   before it reaches the model. It also injects a short session contract that says
-   to lead with the outcome, avoid overplanning, verify claims against tool output,
-   and keep working while independent subtasks run.
-
-#### Prerequisites
-Before running TokenCodec, you must be logged in to the CLI you want to wrap:
+#### For Claude and Codex (recommended):
 
 ```bash
-# Log in to Copilot
-copilot auth login
+git clone https://github.com/sethiramicrosoft/tokencodec.git
+cd tokencodec
+npm install
 
-# Log in to Claude
-claude auth login
+# Log in first
+claude auth login    # or: codex auth login
 
-# Log in to Codex (OpenAI)
-codex auth login
+# Run through the wrapper
+npm run wrap -- claude
+npm run wrap -- codex
 ```
 
-If you see "Authorization header is badly formatted" when you run TokenCodec, it usually means you are not authenticated. Stop the wrapper and log in first.
+Then ask a question with JSON data for best compression:
 
-#### Verify it's working
-
-When you ask the CLI a question through TokenCodec, you should see compression stats in the console:
-
+```json
+[
+  {"name":"John","age":28,"role":"engineer","status":"active"},
+  {"name":"Sarah","age":32,"role":"senior_engineer","status":"active"}
+]
 ```
-[TokenCodec] Compression: 2450 → 1089 tokens (55.5% saved)
+
+**You should see:**
+```
+[TokenCodec] Compression: 402 → 193 tokens (52% saved)
 ```
 
-If you do not see this, the wrapper may not have intercepted the request correctly.
+#### For GitHub Copilot:
+
+The CLI wrapper has auth limitations with Copilot's API. For now, use:
+
+1. **The web page directly:** https://sethiramicrosoft.github.io/tokencodec/ — paste your prompt, optimize, copy the result, and paste into Copilot.
+2. **Coming soon:** A browser-integrated wrapper that compresses before you hit send.
 
 #### Customize the wrapper
 
-If you do not want the session contract, set `TOKENCODEC_SESSION_PROMPT=off`:
+If you don't want the session contract, disable it:
 
 ```bash
-TOKENCODEC_SESSION_PROMPT=off npm run wrap -- copilot
+TOKENCODEC_SESSION_PROMPT=off npm run wrap -- claude
 ```
 
-If you want a different model, pass it through to the CLI or set the model env var:
+To use a different model:
 
 ```bash
-npm run wrap -- copilot -- --model gpt-4o
-COPILOT_MODEL=gpt-4o npm run wrap -- copilot
+npm run wrap -- claude -- --model claude-3-5-sonnet
 ```
+
 
 ### The hosted page is live
 
