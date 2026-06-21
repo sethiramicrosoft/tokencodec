@@ -45,7 +45,7 @@ Examples:
   cat data.json | tokencodec encode
   tokencodec encode data.json > compressed.txt
   tokencodec decode reply.txt
-  echo '{"x":1}' | tokencodec encode | tokencodec decode
+  echo '[{"x":1},{"x":2},{"x":3}]' | tokencodec encode | tokencodec decode
   tokencodec install
   tokencodec install --global
   tokencodec install --check

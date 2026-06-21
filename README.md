@@ -1,15 +1,21 @@
 # TokenCodec
 
-**A local, lossless table codec for shrinking JSON/NDJSON pasted into LLM chats. Browser extension, web tool, CLI, and tiny JS library.**
+Local, lossless JSON/NDJSON codec for LLM chats — browser extension, web tool, CLI, and JS library.
 
-**Try it live, no install:** https://sethiramicrosoft.github.io/tokencodec/
+**Try it live:** https://sethiramicrosoft.github.io/tokencodec/
 
-## The 30-second version
+---
+
+## In 30 seconds
 
 1. Paste a JSON array or NDJSON block into ChatGPT, Claude or Gemini.
+
 2. Click **Shrink prompt** (browser extension) or use the [web tool](https://sethiramicrosoft.github.io/tokencodec/).
+
 3. Your prompt becomes a compact `@T2` table — same data, ~50–70% fewer tokens.
+
 4. Send it. The model reads it exactly as it read the JSON.
+
 5. Got a table back? Paste the reply into the decoder — expands to JSON exactly. **Nothing ever leaves your browser.**
 
 That's the core. The rules installer, middleware, and CLI extend the same codec to AI agents, production APIs, and terminal pipelines.
@@ -112,11 +118,13 @@ npx github:sethiramicrosoft/tokencodec install
 # or: node /path/to/tokencodec/cli.mjs install
 ```
 
-Then use your AI tool **normally**. It will automatically:
+Then use your AI tool **normally**. Capable agents will prefer to:
 - Query data instead of pasting it (169x–16,170x fewer tokens on datasets)
-- Read only what it needs, not whole files
+- Read only what they need, not whole files
 - Return compact tables, not pretty-printed JSON
-- Keep your chat history short
+- Keep chat history short
+
+These are nudges, not enforced runtime guarantees — the agent has to support instruction-following for the rules to take effect.
 
 Example with Copilot:
 ```bash
