@@ -103,6 +103,9 @@ const web = read("web/index.html");
     [/ENGINE TESTS:\s+(\d+) passed/, /\*\*Engine\*\* \((\d+) checks/, "engine.test.mjs", "Engine"],
     [/INSTALLER TESTS:\s+(\d+) passed/, /\*\*Installer\*\* \((\d+) checks/, "install.test.mjs", "Installer"],
     [/MIDDLEWARE TESTS:\s+(\d+) passed/, /\*\*Middleware\*\* \((\d+) checks/, "middleware/compress.test.mjs", "Middleware"],
+    [/MIDDLEWARE HTTP INTEGRATION:\s+(\d+) passed/, /\*\*Middleware HTTP\*\* \((\d+) checks/, "middleware/http.test.mjs", "Middleware HTTP"],
+    [/CLI INTEGRATION:\s+(\d+) passed/, /\*\*CLI\*\* \((\d+) checks/, "e2e/cli.test.mjs", "CLI"],
+    [/REAL-WORLD DATA:\s+(\d+) passed/, /\*\*Real-world data\*\* \((\d+) checks/, "e2e/realworld.test.mjs", "Real-world data"],
   ];
   for (const [outRe, readmeRe, file, label] of suites) {
     const actual = Number(node(file).match(outRe)[1]);

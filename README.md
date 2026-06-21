@@ -667,6 +667,12 @@ What's covered, end to end:
   malformed-block repair, directory-target handling.
 - **Middleware** (28 checks): input compression is lossless and reports real savings;
   the output round-trip injects the format hint and decodes `@T2` replies back to JSON.
+- **Middleware HTTP** (21 checks): `withCompression`, `withRoundTrip`, shadow, and enforce
+  modes exercised against a real in-process HTTP server — the compressed payload is
+  verified on arrival, not just in unit code.
+- **CLI** (35 checks): every subcommand (`encode`, `decode`, `install`) invoked via real
+  process spawning with real data — JSON array, NDJSON, file input, pipe round-trip,
+  `--dry-run`, `--check`, idempotency.
 - **E2E node** (16 checks): the committed `web/index.html` and `extension/content.js`
   are in sync with `engine.mjs` (no drift), `serve.mjs` blocks path traversal, and the
   three proofs emit the exact numbers this README cites.
@@ -686,6 +692,10 @@ What's covered, end to end:
   button adds the `@T2` rule - all with zero console errors. (The live ChatGPT/Claude/Gemini
   sites are not driven - they need a login and block automation - so the content script is
   exercised against equivalent editors rather than the real pages.)
+- **Real-world data** (31 checks): 200–1,000 row deterministic datasets (employee
+  records, API logs, financial ledgers) encode, decode, and return identical records;
+  float precision, all field types, NDJSON, mixed documents, adversarial string values,
+  and nested-data safe-rejection are all verified.
 
 ## Disclaimer
 

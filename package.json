@@ -7,8 +7,8 @@
     "tokencodec": "cli.mjs"
   },
   "scripts": {
-    "test": "node engine.test.mjs && node install.test.mjs && node middleware/compress.test.mjs",
-    "test:e2e": "node e2e/accuracy.node.test.mjs && node e2e/claims.test.mjs && node e2e/accuracy.browser.test.mjs",
+    "test": "node engine.test.mjs && node install.test.mjs && node middleware/compress.test.mjs && node middleware/http.test.mjs",
+    "test:e2e": "node e2e/accuracy.node.test.mjs && node e2e/claims.test.mjs && node e2e/accuracy.browser.test.mjs && node e2e/cli.test.mjs && node e2e/realworld.test.mjs",
     "test:all": "npm test && npm run test:e2e",
     "build:web": "node build-web.mjs",
     "build:ext": "node extension/build-extension.mjs",
