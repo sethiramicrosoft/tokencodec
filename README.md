@@ -40,46 +40,13 @@ if your data is medical, financial, legal, or otherwise sensitive.
 
 ---
 
-## 5 people who save the most
+## Where people get the most value
 
-These are the cases where the savings are biggest *and* the tool already fits how
-they work today:
+**Biggest mechanical wins:** anyone pasting flat JSON/NDJSON into an LLM chat — analysts, developers, SRE/ops, finance/audit with tabular exports. The codec is lossless and automatic; savings are 50–70% on structured data and up to 16,000x on large datasets where query-don't-paste applies.
 
-1. **The full-stack / SaaS developer living in an AI agent.**
-   All day in Claude Code, Cursor or Copilot. The agent re-reads 2,000-line files,
-   reprints them to change five lines, and resends the whole conversation every
-   turn - a 200-turn session bills ~24x more than it needs to. The installer makes
-   "read only what you need, send small diffs, keep a compact state" the default.
-   The difference between hitting your cap by noon and shipping all afternoon.
+**Conditional:** clinical, legal, or sales users with structured (flat tabular) data. The codec works; the catch is that most of their data is unstructured prose, PDFs, or nested records — out of scope today.
 
-2. **The data scientist / analyst.**
-   Pastes a 10,000-row CSV to ask "average by region?" and pays for all 10,000 rows.
-   TokenCodec turns it into a 3-line query that returns only the answer - hundreds to
-   thousands of times fewer tokens (the proofs measure 169x at 600 rows, 16,170x at
-   60,000) - and when you must include data, shrinks it ~70% with
-   zero values changed.
-
-3. **The AI product builder / indie hacker shipping an LLM feature.**
-   Burns tokens twice: building it *and* serving users. The installer cuts the
-   build-time burn; the importable engine and its principles ("query, don't paste";
-   "don't repeat"; "compact the data") cut the runtime burn when wired into the
-   backend. At millions of calls, every trimmed prompt is a line-item saving.
-
-4. **The auditor / accountant / financial analyst.**
-   Drops whole ledgers and exports into AI to find anomalies or reconcile. The
-   lossless shrink compacts the table **without altering a single number** - the
-   part they can't compromise - and "query for the exceptions" returns only the
-   rows that matter instead of re-reading the book on every question.
-
-5. **The researcher / scientist with real datasets.**
-   Exact numbers, reproducibility, no silent corruption. The codec is provably
-   lossless (8,000-trial fuzz, zero loss), refuses rather than mangles unsafe
-   values, and the proofs are runnable. And it all runs locally, so sensitive data
-   never leaves the machine.
-
----
-
-## Where TokenCodec helps today
+**Not the right tool:** writers, students, artists, executives reading reports. The codec is for structured data, not prose.
 
 | Strong fit — codec does the work | Conditional fit — depends on data shape | Not the core product |
 |---|---|---|
@@ -129,8 +96,8 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
   **rules installer** once. From then on it is automatic - there is no button to click.
 - **You build an app that calls an LLM API**: use the **middleware** to compress requests
   (and decode `@T2` replies) at runtime.
-- **You want a terminal/shell codec**: `tokencodec encode < data.json` shrinks to @T2,
-  `tokencodec decode < reply.txt` expands back to JSON. Pipe-friendly.
+- **You want a terminal/shell codec**: `node cli.mjs encode < data.json` shrinks to @T2,
+  `node cli.mjs decode < reply.txt` expands back to JSON. Pipe-friendly.
 - **You just want the lossless table primitive**: import the **engine**.
 
 ### Quick start: automatic compression for all your AI tools
@@ -141,8 +108,8 @@ The **rules installer** is the easiest path. It teaches TokenCodec compression r
 
 ```bash
 cd /path/to/your-project
-npx tokencodec install
-# or: node /path/to/tokencodec/install.mjs
+npx github:sethiramicrosoft/tokencodec install
+# or: node /path/to/tokencodec/cli.mjs install
 ```
 
 Then use your AI tool **normally**. It will automatically:
@@ -405,26 +372,28 @@ Always handle that by keeping your original JSON - which is exactly what
 For shell scripts, CI pipelines, or any language that can call a process:
 
 ```bash
-# Install once
-npm install -g tokencodec
+# Clone and run locally (not yet on npm)
+git clone https://github.com/sethiramicrosoft/tokencodec
+cd tokencodec
 
 # Encode: compress JSON/NDJSON to @T2
-cat data.json | tokencodec encode
-tokencodec encode data.json > compressed.txt
+cat data.json | node cli.mjs encode
+node cli.mjs encode data.json > compressed.txt
 
 # Decode: expand @T2 back to JSON
-tokencodec decode compressed.txt
-cat model_reply.txt | tokencodec decode
+node cli.mjs decode compressed.txt
+cat model_reply.txt | node cli.mjs decode
 
-# Full round-trip pipe
-cat data.json | tokencodec encode | pbcopy    # shrink, copy, paste into ChatGPT
-# ... paste reply into file ...
-tokencodec decode reply.txt                   # expand back to JSON
+# Full round-trip (array input encodes; single objects pass through unchanged)
+echo '[{"name":"Jordan","score":87},{"name":"Sam","score":92}]' | node cli.mjs encode | node cli.mjs decode
 
-# Install agent rules (same as before)
-tokencodec install
-tokencodec install --global
-tokencodec install --check    # CI gate
+# Pipe to clipboard and paste into ChatGPT
+cat data.json | node cli.mjs encode | pbcopy
+
+# Install agent rules
+node cli.mjs install
+node cli.mjs install --global
+node cli.mjs install --check    # CI gate
 ```
 
 The CLI reads stdin when no file is given, so it fits naturally in pipelines across Python, bash, or any language that can shell out.
