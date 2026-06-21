@@ -1,8 +1,20 @@
 # TokenCodec
 
-**A local, lossless table codec for shrinking JSON/NDJSON pasted into LLM chats. Browser extension, web tool, and tiny JS library.**
+**A local, lossless table codec for shrinking JSON/NDJSON pasted into LLM chats. Browser extension, web tool, CLI, and tiny JS library.**
 
 **Try it live, no install:** https://sethiramicrosoft.github.io/tokencodec/
+
+## The 30-second version
+
+1. Paste a JSON array or NDJSON block into ChatGPT, Claude or Gemini.
+2. Click **Shrink prompt** (browser extension) or use the [web tool](https://sethiramicrosoft.github.io/tokencodec/).
+3. Your prompt becomes a compact `@T2` table — same data, ~50–70% fewer tokens.
+4. Send it. The model reads it exactly as it read the JSON.
+5. Got a table back? Paste the reply into the decoder — expands to JSON exactly. **Nothing ever leaves your browser.**
+
+That's the core. The rules installer, middleware, and CLI extend the same codec to AI agents, production APIs, and terminal pipelines.
+
+---
 
 If an AI reads your words or data, you pay for every token. Most "prompt
 compressors" shrink text by *summarizing or trimming* it - and quietly risk
@@ -67,25 +79,17 @@ they work today:
 
 ---
 
-## The wider list - if your AI reads it, you're paying for it
+## Where TokenCodec helps today
 
-| You are a... | Where your tokens go | What TokenCodec does |
+| Strong fit — codec does the work | Conditional fit — depends on data shape | Not the core product |
 |---|---|---|
-| **Software / full-stack developer** | The AI agent re-reads whole files, reprints a 500-line file to change 3 lines, dumps giant build/test logs, and resends the entire chat every turn | The rules make it search and read only what it needs, send small diffs, trim logs, and keep a compact running state (kills the quadratic chat-history tax) |
-| **Data scientist / analyst** | Pasting a 10,000-row CSV to ask one question makes the model read all 10,000 rows | Flags it and tells the AI to write a query, run it, return only the answer - **169x to 16,170x fewer tokens** in the proofs (600 to 60,000 rows) - and shrinks data you must include, losslessly |
-| **Auditor** | Pasting whole ledgers and transaction logs to hunt for anomalies | Ask once, query for the exceptions, return only the flagged rows instead of the whole book |
-| **Accountant** | Reconciling and summarising big financial tables | Shrinks the table **without altering a single number** (provably lossless), and turns "find the mismatches" into a query, not a full paste |
-| **Business analyst** | Dumping dashboards and exports into AI for "what's the trend?" | Compresses the data and pushes the math into a query, so you pay for the answer, not the haystack |
-| **Sales professional** | Pasting long call transcripts, email threads and CRM exports | Reads only the relevant slice and stops re-sending the whole thread on every follow-up |
-| **Doctor / clinician** | Lab panels and structured test results pasted as JSON/NDJSON | Compacts flat numeric tables - and runs **entirely on your machine**, so nothing sensitive leaves it. Unstructured notes and PDFs are out of scope. |
-| **Engineer (any discipline)** | Sensor logs, bills of materials, simulation output | Lossless table shrink plus query-don't-paste for anything computable |
-| **Scientist / researcher** | Exact numerical datasets where a wrong digit is unacceptable | A **proven lossless** codec that refuses rather than corrupts, with reproducible proofs and a precise numerical-fidelity contract (see below) |
-| **Writer / student** | Pasting an entire document to ask one thing | The rules tell the AI to search the text and read only the part that matters (behavioral, not codec) |
-| **Artist / worldbuilder** | Re-pasting a huge lore bible every message | Minimal gain - lore is prose, and the codec is for structured data, not running prose |
-| **Executive / team lead** | Your whole team's AI bill, multiplied across every repo | Install once across repos; real savings depend on how structured the team's data workflows are |
+| Developers pasting JSON/NDJSON into AI chats | Finance/audit: flat tabular exports as JSON | Writers, students: prose documents |
+| Analysts with structured datasets | Doctors/lawyers: flat tabular clinical data | Artists, worldbuilders: lore bibles (prose) |
+| SRE/ops: structured logs and metrics | Sales/ops: CRM exports in JSON/NDJSON | General prose, PDFs, RAG, images, audio |
+| LLM app builders (middleware) | AI coding agents (via rules installer) | Executives with no structured data workflow |
 
 The single idea behind all of it: **never make the AI read, reprint, or repeat
-anything it doesn't have to.** TokenCodec just makes that the default.
+anything it doesn't have to.**
 
 ---
 
@@ -93,24 +97,12 @@ anything it doesn't have to.** TokenCodec just makes that the default.
 
 Straight talk beats overselling:
 
-- **Fully served now:** software & full-stack developers, data scientists, and
-  anyone comfortable running a small local program. The installer plugs into AI
-  coding agents; the engine and optimizer handle pasted data.
-- **Served, with a catch:** auditors, accountants, analysts, doctors, lawyers,
-  researchers and execs get real value from the optimizer and the
-  "query-don't-paste" idea - but today that means running a local page or copying
-  prompts by hand. Most non-technical users won't do that yet.
-- **Now covered (new):**
-  - Mainstream ChatGPT / Claude / Gemini users - the **browser extension** adds a
-    one-click *Shrink* button right inside the prompt box.
-  - **Production / runtime** spend - the **API-side compressor** (`middleware/`)
-    shrinks prompts in your backend before they're billed.
-  - **Log / export data** - the engine now also re-encodes **NDJSON / JSON-lines**.
+- **Fully served now:** anyone pasting JSON/NDJSON — browser extension users, developers, data scientists, and analysts. The codec is mechanical and lossless; it works the same for everyone.
+- **Conditional:** auditors, accountants, researchers, and clinical users with structured (flat tabular) data get real value. Unstructured text, PDFs, and nested records are out of scope today.
+- **Not yet:** prose-heavy workflows (writers, lawyers with document review, executives reading reports). The codec is for structured data, not running text.
 - **Still not addressed (stated, not pretended):**
-  - Tokens burned by **images, audio, PDFs and RAG retrieval** - the shrinker only
-    compresses flat tabular JSON/NDJSON; prose and binaries are out of scope.
-  - AI inside other surfaces (Office, Notion, Slack, IDE side-panels) - no
-    integration yet.
+  - Tokens burned by **images, audio, PDFs and RAG retrieval** — the codec only handles flat JSON/NDJSON; binaries and prose are out of scope.
+  - AI inside other surfaces (Office, Notion, Slack, IDE side-panels) — no integration yet.
 
 "I burnt billions of tokens" means one of two different things. If it was your
 **coding agent** while building, the installer is for you. If it's your **app at
@@ -120,8 +112,9 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
 
 | Piece | Who it's for | Where |
 |---|---|---|
-| **Rules installer** | Anyone using an AI coding agent | `install.mjs` |
+| **Rules installer** | Anyone using an AI coding agent | `install.mjs` / `tokencodec install` |
 | **Lossless engine** (JSON + NDJSON -> table) | Importable anywhere | `engine.mjs` |
+| **CLI codec** | Terminal pipelines, shell scripts | `tokencodec encode` / `tokencodec decode` |
 | **In-browser optimizer** | Anyone, no coding | `web/` (run `node serve.mjs`) |
 | **Browser extension** | ChatGPT / Claude / Gemini users | `extension/` |
 | **API-side compressor** | Production apps burning tokens at runtime | `middleware/` |
@@ -136,6 +129,8 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
   **rules installer** once. From then on it is automatic - there is no button to click.
 - **You build an app that calls an LLM API**: use the **middleware** to compress requests
   (and decode `@T2` replies) at runtime.
+- **You want a terminal/shell codec**: `tokencodec encode < data.json` shrinks to @T2,
+  `tokencodec decode < reply.txt` expands back to JSON. Pipe-friendly.
 - **You just want the lossless table primitive**: import the **engine**.
 
 ### Quick start: automatic compression for all your AI tools
@@ -146,7 +141,8 @@ The **rules installer** is the easiest path. It teaches TokenCodec compression r
 
 ```bash
 cd /path/to/your-project
-node /path/to/tokencodec/install.mjs
+npx tokencodec install
+# or: node /path/to/tokencodec/install.mjs
 ```
 
 Then use your AI tool **normally**. It will automatically:
@@ -403,6 +399,35 @@ const back = tableDecode(wire);      // structurally identical records
 `tableEncode` returns **`null`** whenever it cannot guarantee a perfect round-trip.
 Always handle that by keeping your original JSON - which is exactly what
 `optimize()` does internally. Never assume conversion happened.
+
+## Shrink prompts from the terminal (CLI codec)
+
+For shell scripts, CI pipelines, or any language that can call a process:
+
+```bash
+# Install once
+npm install -g tokencodec
+
+# Encode: compress JSON/NDJSON to @T2
+cat data.json | tokencodec encode
+tokencodec encode data.json > compressed.txt
+
+# Decode: expand @T2 back to JSON
+tokencodec decode compressed.txt
+cat model_reply.txt | tokencodec decode
+
+# Full round-trip pipe
+cat data.json | tokencodec encode | pbcopy    # shrink, copy, paste into ChatGPT
+# ... paste reply into file ...
+tokencodec decode reply.txt                   # expand back to JSON
+
+# Install agent rules (same as before)
+tokencodec install
+tokencodec install --global
+tokencodec install --check    # CI gate
+```
+
+The CLI reads stdin when no file is given, so it fits naturally in pipelines across Python, bash, or any language that can shell out.
 
 ## Shrink prompts in production (runtime compressor)
 

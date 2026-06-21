@@ -1,10 +1,10 @@
 {
   "name": "tokencodec",
   "version": "1.0.1",
-  "description": "The lossless prompt and data codec for LLMs: re-encode prompts to a fraction of the tokens and decode back byte-for-byte. One command makes every AI coding agent token-efficient.",
+  "description": "A local, lossless table codec for shrinking JSON/NDJSON in LLM prompts. Browser extension, web tool, CLI (encode/decode), and JS library.",
   "type": "module",
   "bin": {
-    "tokencodec": "install.mjs"
+    "tokencodec": "cli.mjs"
   },
   "scripts": {
     "test": "node engine.test.mjs && node install.test.mjs && node middleware/compress.test.mjs",
