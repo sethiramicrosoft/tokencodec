@@ -276,13 +276,14 @@ $('sample').addEventListener('click', () => {
 renderWrapper();
 recompute(); // render immediately with the fallback so the UI works even if the CDN is slow or blocked
 
-// ---- OUTPUT side: expand a compact @T2 reply back into readable JSON ----
+// ---- OUTPUT side: expand a compact @T2 (or legacy @T1) reply back into readable JSON ----
 let decTimer = 0;
 function renderDecode() {
   const src = $('decode-in').value;
   const stats = $('decode-stats');
   if (!src.trim()) { $('decode-out').value = ''; stats.hidden = true; return; }
-  if (src.indexOf('@T2 ') === -1) {
+  const hasTable = src.indexOf('@T2 ') !== -1 || src.indexOf('@T1(') !== -1;
+  if (!hasTable) {
     $('decode-out').value = src;
     stats.hidden = false;
     stats.textContent = 'No @T2 table found here - paste a reply that contains an @T2 line.';

@@ -1,0 +1,7 @@
+{
+  "original": "[{\"id\":1,\"region\":\"APAC\",\"amount\":5000},{\"id\":2,\"region\":\"EMEA\",\"amount\":5100},{\"id\":3,\"region\":\"NA\",\"amount\":5200}]",
+  "option1": "@T1|i|s|i\n1\tAPAC\t5000\n2\tEMEA\t5100\n3\tNA\t5200",
+  "option2": "@T1 int string int\n1\tAPAC\t5000\n2\tEMEA\t5100\n3\tNA\t5200",
+  "option3": "| id:i | region:s | amount:i |\n| 1 | APAC | 5000 |\n| 2 | EMEA | 5100 |\n| 3 | NA | 5200 |",
+  "option4": "@T1(id:i,region:s,amount:i)\n1,\"APAC\",5000\n2,\"EMEA\",5100\n3,\"NA\",5200"
+}

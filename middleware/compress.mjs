@@ -9,7 +9,8 @@
 // drops information, so the model sees the same facts for fewer tokens.
 
 import { optimize, decodeTables } from "../engine.mjs";
-let warnedLegacyFormat = false;
+let legacyFormatCount = 0;
+export const getLegacyFormatCount = () => legacyFormatCount;
 
 // Rough, dependency-free token estimate (~4 chars/token). Pass your real
 // tokenizer via { tokenizer } for exact numbers (e.g. gpt-tokenizer's encode).
@@ -143,8 +144,8 @@ export function decodeResponse(text, { space = 0 } = {}) {
   return decodeTables(text, {
     space,
     onLegacyFormat: () => {
-      if (!warnedLegacyFormat) {
-        warnedLegacyFormat = true;
+      legacyFormatCount++;
+      if (legacyFormatCount === 1) {
         console.warn("TokenCodec: parsed legacy @T1(...) table; please migrate emitters to @T2.");
       }
     },

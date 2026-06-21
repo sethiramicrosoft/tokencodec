@@ -1,6 +1,6 @@
 # TokenCodec
 
-**The lossless codec for LLM prompts and data. Re-encode to a fraction of the tokens, then decode back byte-for-byte.**
+**A local, lossless table codec for shrinking JSON/NDJSON pasted into LLM chats. Browser extension, web tool, and tiny JS library.**
 
 **Try it live, no install:** https://sethiramicrosoft.github.io/tokencodec/
 
@@ -77,12 +77,12 @@ they work today:
 | **Accountant** | Reconciling and summarising big financial tables | Shrinks the table **without altering a single number** (provably lossless), and turns "find the mismatches" into a query, not a full paste |
 | **Business analyst** | Dumping dashboards and exports into AI for "what's the trend?" | Compresses the data and pushes the math into a query, so you pay for the answer, not the haystack |
 | **Sales professional** | Pasting long call transcripts, email threads and CRM exports | Reads only the relevant slice and stops re-sending the whole thread on every follow-up |
-| **Doctor / clinician** | Long patient notes, lab panels and papers pasted to ask a focused question | Reads only the section that answers it and compacts lab tables - and runs **entirely on your machine**, so nothing sensitive leaves it |
+| **Doctor / clinician** | Lab panels and structured test results pasted as JSON/NDJSON | Compacts flat numeric tables - and runs **entirely on your machine**, so nothing sensitive leaves it. Unstructured notes and PDFs are out of scope. |
 | **Engineer (any discipline)** | Sensor logs, bills of materials, simulation output | Lossless table shrink plus query-don't-paste for anything computable |
 | **Scientist / researcher** | Exact numerical datasets where a wrong digit is unacceptable | A **proven lossless** codec that refuses rather than corrupts, with reproducible proofs and a precise numerical-fidelity contract (see below) |
-| **Writer / student** | Pasting an entire document to ask one thing | The AI searches the text and reads only the part that matters |
-| **Artist / worldbuilder** | Re-pasting a huge lore bible or style guide every message | Keeps that reference compact and stable instead of re-sending it each turn |
-| **Executive / team lead** | Your whole team's AI bill, multiplied across every repo | Install once, enforce in CI with `--check` - cut spend without changing how anyone works |
+| **Writer / student** | Pasting an entire document to ask one thing | The rules tell the AI to search the text and read only the part that matters (behavioral, not codec) |
+| **Artist / worldbuilder** | Re-pasting a huge lore bible every message | Minimal gain - lore is prose, and the codec is for structured data, not running prose |
+| **Executive / team lead** | Your whole team's AI bill, multiplied across every repo | Install once across repos; real savings depend on how structured the team's data workflows are |
 
 The single idea behind all of it: **never make the AI read, reprint, or repeat
 anything it doesn't have to.** TokenCodec just makes that the default.
@@ -135,7 +135,7 @@ runtime**, use the `middleware/` compressor - same ideas, different place.
 - **You use an AI coding agent** (Copilot CLI, Codex, Claude Code, Cursor): run the
   **rules installer** once. From then on it is automatic - there is no button to click.
 - **You build an app that calls an LLM API**: use the **middleware** to compress requests
-  (and decode `@T1` replies) at runtime.
+  (and decode `@T2` replies) at runtime.
 - **You just want the lossless table primitive**: import the **engine**.
 
 ### Quick start: automatic compression for all your AI tools
@@ -171,11 +171,11 @@ Copilot will:
 
 ### For structured data compression (lossless codec)
 
-If you have **JSON/CSV data to paste**, TokenCodec compresses it 50–70% **losslessly** before sending.
+If you have **JSON/NDJSON data to paste**, TokenCodec compresses it 50–70% **losslessly** before sending.
 
 #### The web interface (manual, no setup)
 https://sethiramicrosoft.github.io/tokencodec/
-- Paste your prompt with JSON/CSV data
+- Paste your prompt with JSON/NDJSON data
 - See compression in real-time
 - Copy the compressed result
 
@@ -424,7 +424,7 @@ const reply = await openai.chat.completions.create({ model, messages });
 It re-encodes embedded JSON/NDJSON losslessly and strips filler, so the model sees
 the same facts for fewer tokens. Image/tool parts pass through untouched.
 
-To cut the **reply** too, ask for an `@T1` table and expand it back to JSON on receipt:
+To cut the **reply** too, ask for an `@T2` table and expand it back to JSON on receipt:
 
 ```js
 import { withRoundTrip } from "./middleware/compress.mjs";
@@ -435,11 +435,11 @@ const { text, stats } = await withRoundTrip(rawMessages, async (messages) => {
   const r = await openai.chat.completions.create({ model, messages });
   return r.choices[0].message.content;
 });
-// `text` is normal JSON your app can parse; the model billed you for the smaller @T1.
+// `text` is normal JSON your app can parse; the model billed you for the smaller @T2.
 ```
 
 Or wire the pieces yourself: `OUTPUT_FORMAT_HINT` (a system-prompt string) and
-`decodeResponse(text)` (expands any `@T1` in a reply, leaves prose untouched). There is
+`decodeResponse(text)` (expands any `@T2` in a reply, leaves prose untouched). There is
 no lossless win for free-form prose - this helps when the answer is uniform records.
 
 ## Browser extension (ChatGPT / Claude / Gemini)
@@ -463,7 +463,7 @@ in-place re-encode and the toast are all the actual extension.
 
 ![The TokenCodec browser extension over a chat composer: a pasted JSON array of eight orders fills the message box, with floating "Shrink prompt" and "Compact reply" buttons in the bottom-right corner.](docs/screenshots/extension-before.png)
 
-**After - one click on "Shrink prompt" re-encodes it in place to a compact `@T1` table, and a toast shows what you saved:**
+**After - one click on "Shrink prompt" re-encodes it in place to a compact `@T2` table, and a toast shows what you saved:**
 
 ![After clicking Shrink prompt: the same eight orders are re-encoded in the message box as a compact @T2 table - the header @T2 id int customer string region string total float paid bool and eight space-delimited rows - with a toast reading "Shrunk ~64% (about 152 fewer tokens)".](docs/screenshots/extension-after.png)
 
@@ -482,7 +482,7 @@ access, no network call - the codec is bundled in.
    prompt - a plain `<textarea>` or a rich contenteditable editor like ProseMirror or
    Lexical (what Claude, Gemini and current ChatGPT use) - and pulls the text out.
 3. **It runs `optimize()` on that text.** The same pass used everywhere: any JSON array
-   or NDJSON/log block becomes a compact `@T1` table and filler is stripped. No value is
+   or NDJSON/log block becomes a compact `@T2` table and filler is stripped. No value is
    ever changed, so the model sees the same facts for fewer tokens.
 4. **It writes the smaller prompt back the right way, and checks it took.** Just setting
    `.value` would not register with these apps, so they would still send the old text. The
@@ -498,7 +498,7 @@ You stay in control: nothing is sent automatically. You click Shrink, see the sm
 prompt sitting in the box, and press send yourself.
 
 **Output tokens too.** The second button, **Compact reply**, appends a short one-line
-rule to your prompt so the model returns tabular answers as a compact `@T1` table
+rule to your prompt so the model returns tabular answers as a compact `@T2` table
 instead of verbose JSON - fewer output tokens, which are billed several times more than
 input. It stays inside
 the prompt box (a raw chat has no system-prompt field), so the privacy promise holds; to
@@ -524,7 +524,7 @@ Gemini, click into the message box, and paste a JSON array such as:
 [{"id":1,"region":"APAC","total":248.5,"paid":true},{"id":2,"region":"EMEA","total":76,"paid":false}]
 ```
 
-Press **Shrink prompt**. The box should collapse to a compact `@T1` table and a toast
+Press **Shrink prompt**. The box should collapse to a compact `@T2` table and a toast
 should report the tokens saved (see the [before/after screenshots](#what-it-looks-like)
 above, which come from this exact flow). Press **Compact reply** to append the one-line
 reply rule. Then press the chat's own send button yourself - the model reads the table
@@ -584,7 +584,7 @@ JSON repeats every column name on every row. A header-once typed table doesn't:
 "Sam Rivera" 92 4.9 0
 ```
 
-Header is `@T<version> col type col type ...`, current version `1`. Types: `string`
+Header is `@T<version> col type col type ...`, current version `2`. Types: `string`
 (always quoted; `"` doubled, control chars escaped), `int` integer, `float` float,
 `bool` boolean (`1`/`0`); null is the unquoted sentinel `\N` (a quoted `"\N"` is the
 literal text).
@@ -624,14 +624,14 @@ one thing that does **not** help.
 
 The installed rules tell your agent to be brief, send small diffs instead of reprinting
 whole files (the biggest output cost in agentic coding), and return uniform lists as a
-compact `@T1` table. Measured (`benchmark/output_benchmark.mjs`): the 10-record answer is
-**147 tokens as `@T1` vs 192 as compact JSON - 23% fewer** - decoding losslessly, with no
+compact `@T2` table. Measured (`benchmark/output_benchmark.mjs`): the 10-record answer is
+**147 tokens as `@T2` vs 192 as compact JSON - 23% fewer** - decoding losslessly, with no
 accuracy change per model for GPT-5.4-mini and Claude Haiku 4.5. Delivered through the
 installed rules (CLI/Codex/Claude Code), the web *"Shrink the reply too"* panel, the
 extension's *Compact reply* button, and the middleware's `OUTPUT_FORMAT_HINT`.
 
 **What does not help: decoding.** `decodeTables` / `decodeResponse` expand a compact
-`@T1` reply back into JSON, but that runs on your machine *after* the model generated and
+`@T2` reply back into JSON, but that runs on your machine *after* the model generated and
 you were already billed - it saves zero tokens. It is plumbing so your code can read a
 reply you asked to be compact, not a discount.
 
@@ -659,12 +659,12 @@ What's covered, end to end:
 
 - **Engine** (51 checks + an 8,000-trial lossless fuzz): JSON and NDJSON round-trip,
   hostile-input safety, the numeric/format guarantees in Part 3, and the receive-side
-  `decodeTables` round-trip (expands `@T1` replies back to JSON, ignores non-tables).
+  `decodeTables` round-trip (expands `@T2` replies back to JSON, ignores non-tables).
 - **Installer** (55 checks): idempotency, content preservation, `--check`, `--remove`
   (including `--remove --dry-run` previews nothing destructive), symlink refusal,
   malformed-block repair, directory-target handling.
-- **Middleware** (23 checks): input compression is lossless and reports real savings;
-  the output round-trip injects the format hint and decodes `@T1` replies back to JSON.
+- **Middleware** (28 checks): input compression is lossless and reports real savings;
+  the output round-trip injects the format hint and decodes `@T2` replies back to JSON.
 - **E2E node** (16 checks): the committed `web/index.html` and `extension/content.js`
   are in sync with `engine.mjs` (no drift), `serve.mjs` blocks path traversal, and the
   three proofs emit the exact numbers this README cites.
@@ -672,16 +672,16 @@ What's covered, end to end:
   from the engine, the benchmarks and the pinned pricing snapshot, then asserted against
   the prose - so no number here can silently drift. The wire-format example is decoded to
   prove it is valid.
-- **E2E browser** (27 checks): the web tool's displayed token counts equal a real
+- **E2E browser** (29 checks): the web tool's displayed token counts equal a real
   tokenizer, the % and $ figures are arithmetically correct, the output decodes back to
   the original data (lossless), the model switch recomputes cost, copy confirms, the
-  "Shrink the reply too" panel expands a compact `@T1` reply losslessly, and the actual
+  "Shrink the reply too" panel expands a compact `@T2` reply losslessly, and the actual
   `extension/content.js` is loaded into a real page where its "Shrink prompt" button
   losslessly compacts both a plain `<textarea>` and a contenteditable rich editor (the
   path ChatGPT/Claude use), it shrinks the editor you focused rather than a decoy search
   box when several share the page, it copies the result to the clipboard (and says so)
   when a box refuses an automated edit instead of wiping it, and its "Compact reply"
-  button adds the `@T1` rule - all with zero console errors. (The live ChatGPT/Claude/Gemini
+  button adds the `@T2` rule - all with zero console errors. (The live ChatGPT/Claude/Gemini
   sites are not driven - they need a login and block automation - so the content script is
   exercised against equivalent editors rather than the real pages.)
 

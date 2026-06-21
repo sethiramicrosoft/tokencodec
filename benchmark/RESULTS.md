@@ -5,7 +5,7 @@ code-computed ground truth, two formats (raw JSON vs the `@T1` table + a one-lin
 legend). The table prompt is **52% smaller** (948 vs 1,960 tokens, legend
 included).
 
-| Model (read-only) | JSON accuracy | `@T1` table accuracy | Tokens saved |
+| Model (read-only) | JSON accuracy | `@T2` table accuracy | Tokens saved |
 |---|---|---|---|
 | GPT-5.4-mini | 10/10 | **10/10** | 52% |
 | Claude Haiku 4.5 | 10/10 | **8/10** | 52% |

@@ -1,5 +1,5 @@
 import { encode } from "gpt-tokenizer/model/gpt-4o";
-import { compressText, compressMessages, withCompression, decodeResponse, withRoundTrip, OUTPUT_FORMAT_HINT } from "./compress.mjs";
+import { compressText, compressMessages, withCompression, decodeResponse, withRoundTrip, OUTPUT_FORMAT_HINT, getLegacyFormatCount } from "./compress.mjs";
 
 const tok = s => encode(s).length;
 let pass = 0, fail = 0;
@@ -117,6 +117,41 @@ ok(typeof OUTPUT_FORMAT_HINT === "string" && OUTPUT_FORMAT_HINT.includes("@T2 ")
   ok(out[0].content === dataMsg, "shadow mode leaves request content unchanged");
   const rf = flags.find(f => f.kind === "router" && f.mode === "shadow");
   ok(!!rf && (rf.wouldRoute === "compress" || rf.wouldRoute === "passthrough"), "shadow mode records a route decision");
+}
+
+// 11. enforce router mode - compresses only when savings clear both thresholds
+{
+  // big payload that SHOULD clear the threshold (120 tokens saved, 15% saved)
+  const { messages: out, flags } = compressMessages(
+    [{ role: "user", content: dataMsg }],
+    { tokenizer: tok, router: { mode: "enforce", minSavedTokens: 120, minSavedPct: 15 } },
+  );
+  ok(out[0].content.includes("@T2 "), "enforce mode compresses when savings clear threshold");
+  const rf = flags.find(f => f.kind === "router" && f.mode === "enforce");
+  ok(!!rf && rf.wouldRoute === "compress", "enforce mode records compress decision for big payload");
+}
+
+// 12. enforce router mode - passes through when savings fall below threshold
+{
+  const tinyMsg = "Hello, how are you?";
+  const { messages: out, flags } = compressMessages(
+    [{ role: "user", content: tinyMsg }],
+    { tokenizer: tok, router: { mode: "enforce", minSavedTokens: 120, minSavedPct: 15 } },
+  );
+  ok(out[0].content === tinyMsg, "enforce mode passes through message when savings below threshold");
+  const rf = flags.find(f => f.kind === "router" && f.mode === "enforce");
+  ok(!!rf && rf.wouldRoute === "passthrough", "enforce mode records passthrough decision for tiny payload");
+}
+
+// 13. getLegacyFormatCount increments on each legacy @T1(...) decode
+{
+  const before = getLegacyFormatCount();
+  // integer-only CSV avoids the unquoted-string guard in the decoder
+  const legacyReply = "@T1(x:i,y:i)\n1,2\n3,4";
+  decodeResponse(legacyReply);
+  decodeResponse(legacyReply);
+  const after = getLegacyFormatCount();
+  ok(after === before + 2, "getLegacyFormatCount increments for each legacy decode call");
 }
 
 function finish() {
