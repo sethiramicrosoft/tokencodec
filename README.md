@@ -687,6 +687,10 @@ What's covered, end to end:
   sites are not driven - they need a login and block automation - so the content script is
   exercised against equivalent editors rather than the real pages.)
 
+## Disclaimer
+
+TokenCodec is the personal work of the author and is not affiliated with, endorsed by, or supported by Microsoft Corporation or any of its subsidiaries.
+
 ## License
 
 MIT - free to use, change and share.
