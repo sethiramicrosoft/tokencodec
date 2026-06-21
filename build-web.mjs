@@ -56,7 +56,7 @@ const html = `<!doctype html>
 <main>
   <a class="skip-link" href="#prompt">Skip to prompt</a>
   <h1>TokenCodec</h1>
-  <p class="tagline">The lossless prompt and data codec for LLMs. <a href="https://github.com/sethiramicrosoft/tokencodec" target="_blank" rel="noopener">View source on GitHub</a></p>
+  <p class="tagline">Local, lossless JSON/NDJSON codec for LLM chats. <a href="https://github.com/sethiramicrosoft/tokencodec" target="_blank" rel="noopener">View source on GitHub</a></p>
   <p class="sub">Paste a prompt. See the tokens you are wasting - tokens are the word-chunks AI models charge for, so fewer tokens means a smaller bill. You get back a shorter version that says exactly the same thing. Everything runs in your browser; nothing is uploaded.</p>
 
   <section class="panel" aria-labelledby="wrap-h">
@@ -156,7 +156,7 @@ const html = `<!doctype html>
   </section>
 
   <footer>
-    <p><strong>TokenCodec</strong> - the lossless prompt and data codec for LLMs.
+    <p><strong>TokenCodec</strong> - local, lossless JSON/NDJSON codec for LLM chats.
       <a href="https://github.com/sethiramicrosoft/tokencodec" target="_blank" rel="noopener">GitHub repository</a> -
       <a href="https://github.com/sethiramicrosoft/tokencodec/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a> -
       built by <a href="https://github.com/sethiramicrosoft" target="_blank" rel="noopener">sethiramicrosoft</a>.</p>
