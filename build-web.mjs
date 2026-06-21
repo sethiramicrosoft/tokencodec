@@ -143,11 +143,11 @@ const html = `<!doctype html>
     <p class="sub" style="margin-bottom:14px">Models charge more for what they write back than for what you send. You cannot losslessly shrink ordinary sentences, but when the answer is a list of records you can ask for it as a compact table - then paste it back here to read it. Both steps run in your browser.</p>
 
     <label for="hint-out">1. Paste this at the top of your chat (ChatGPT, Claude, Copilot, anything)</label>
-    <textarea id="hint-out" readonly aria-label="Instruction to paste into your AI chat" style="min-height:120px">Two quick rules to keep your replies cheap. 1) Be brief: skip the preamble and the recap, just answer. 2) When your answer is a list of items that all share the same fields, give it to me as a compact TokenCodec @T1 table instead of JSON - a header line @T1(col:type,...) where type is s for text, i for whole number, f for decimal, b for true or false, then one comma-separated row per item, text in double quotes, an empty value written as \\N. Use normal sentences for everything else.</textarea>
+    <textarea id="hint-out" readonly aria-label="Instruction to paste into your AI chat" style="min-height:120px">Two quick rules to keep your replies cheap. 1) Be brief: skip the preamble and the recap, just answer. 2) When your answer is a list of items that all share the same fields, give it to me as a compact TokenCodec @T2 table instead of JSON - a header line @T2 col1 int col2 string col3 float ... where types are int, string, float, or bool, then one space-delimited row per item, text in double quotes, and null written as \\N. Use normal sentences for everything else.</textarea>
     <div class="row"><button id="copyhint" type="button" class="secondary">Copy instruction</button><span id="hintcopied" role="status" hidden></span></div>
 
-    <label for="decode-in" style="margin-top:22px">2. Got a compact @T1 reply back? Paste it to read it</label>
-    <textarea id="decode-in" spellcheck="false" placeholder="Paste an @T1(...) reply from the assistant here..." style="min-height:120px"></textarea>
+    <label for="decode-in" style="margin-top:22px">2. Got a compact @T2 reply back? Paste it to read it</label>
+    <textarea id="decode-in" spellcheck="false" placeholder="Paste an @T2 reply from the assistant here..." style="min-height:120px"></textarea>
     <div class="row"><button id="decsample" type="button" class="secondary">Try a sample reply</button></div>
     <div id="decode-stats" class="sub" style="margin-top:10px" aria-live="polite" hidden></div>
     <label for="decode-out">Readable version</label>
@@ -276,23 +276,23 @@ $('sample').addEventListener('click', () => {
 renderWrapper();
 recompute(); // render immediately with the fallback so the UI works even if the CDN is slow or blocked
 
-// ---- OUTPUT side: expand a compact @T1 reply back into readable JSON ----
+// ---- OUTPUT side: expand a compact @T2 reply back into readable JSON ----
 let decTimer = 0;
 function renderDecode() {
   const src = $('decode-in').value;
   const stats = $('decode-stats');
   if (!src.trim()) { $('decode-out').value = ''; stats.hidden = true; return; }
-  if (src.indexOf('@T1(') === -1) {
+  if (src.indexOf('@T2 ') === -1) {
     $('decode-out').value = src;
     stats.hidden = false;
-    stats.textContent = 'No @T1 table found here - paste a reply that contains an @T1(...) line.';
+    stats.textContent = 'No @T2 table found here - paste a reply that contains an @T2 line.';
     return;
   }
   const pretty = decodeTables(src, { space: 2 });
   $('decode-out').value = pretty;
   if (pretty === src) {
     stats.hidden = false;
-    stats.textContent = 'Could not read a complete @T1 table here - make sure the header line and all of its rows were pasted.';
+    stats.textContent = 'Could not read a complete @T2 table here - make sure the header line and all of its rows were pasted.';
     return;
   }
   const tIn = tokCached(src);

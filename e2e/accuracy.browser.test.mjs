@@ -75,7 +75,7 @@ function sampleRecords() {
     else pass++;
 
     // lossless: the table in the output decodes back to the exact sample records
-    const tbl = outText.slice(outText.indexOf("@T1("));
+    const tbl = outText.slice(outText.indexOf("@T2 "));
     ok(eq(tableDecode(tbl), sampleRecords()), "web: optimized output is lossless (table decodes to original 40 records)");
 
     // switch model -> money recomputes with the new price, counts unchanged
@@ -109,8 +109,8 @@ function sampleRecords() {
     await extPage.locator("button", { hasText: "Shrink prompt" }).click();
     await extPage.waitForTimeout(150);
     const extOut = await extPage.inputValue("#t");
-    ok(extOut.includes("@T1("), "extension: prompt box was shrunk to a table");
-    const extTbl = extOut.slice(extOut.indexOf("@T1("));
+    ok(extOut.includes("@T2 "), "extension: prompt box was shrunk to a table");
+    const extTbl = extOut.slice(extOut.indexOf("@T2 "));
     ok(eq(tableDecode(extTbl), recs), "extension: shrink is lossless (decodes to original records)");
     ok(await extPage.locator('[role="status"]').first().isVisible(), "extension: savings toast shown");
 
@@ -118,7 +118,7 @@ function sampleRecords() {
     await extPage.locator("button", { hasText: "Compact reply" }).click();
     await extPage.waitForTimeout(100);
     const extWithHint = await extPage.inputValue("#t");
-    ok(extWithHint.includes("@T1(col:type") && /Reply rule:/.test(extWithHint), "extension: 'Compact reply' adds the reply-saver instruction to the prompt");
+    ok(extWithHint.includes("@T2 ") && /Reply rule:/.test(extWithHint), "extension: 'Compact reply' adds the reply-saver instruction to the prompt");
 
     // ---------- B2. Extension on a rich contenteditable editor (the path Claude / ChatGPT use) ----------
     // A plain <textarea> exercises the native-value-setter branch; ChatGPT and Claude use
@@ -133,8 +133,8 @@ function sampleRecords() {
     await richPage.locator("button", { hasText: "Shrink prompt" }).click();
     await richPage.waitForTimeout(150);
     const richOut = await richPage.evaluate(() => document.getElementById("r").innerText);
-    ok(richOut.includes("@T1("), "extension: rich contenteditable editor was shrunk (execCommand insertText path)");
-    ok(eq(tableDecode(richOut.slice(richOut.indexOf("@T1("))), recs), "extension: contenteditable shrink is lossless");
+    ok(richOut.includes("@T2 "), "extension: rich contenteditable editor was shrunk (execCommand insertText path)");
+    ok(eq(tableDecode(richOut.slice(richOut.indexOf("@T2 "))), recs), "extension: contenteditable shrink is lossless");
     await richPage.close();
 
     // ---------- B3. Several editors on the page: shrink the one the user typed in ----------
@@ -151,7 +151,7 @@ function sampleRecords() {
     await decoyPage.waitForTimeout(150);
     const realOut = await decoyPage.evaluate(() => document.getElementById("real").innerText);
     const decoyOut = await decoyPage.evaluate(() => document.getElementById("decoy").innerText);
-    ok(realOut.includes("@T1("), "extension: with several editors, the focused prompt box is the one shrunk");
+    ok(realOut.includes("@T2 "), "extension: with several editors, the focused prompt box is the one shrunk");
     ok(decoyOut === "search", "extension: the decoy editor (e.g. a sidebar search box) is left untouched");
     await decoyPage.close();
 
@@ -179,9 +179,9 @@ function sampleRecords() {
     const rejBox = await rejectPage.evaluate(() => document.getElementById("rej").innerText);
     const rejCopied = await rejectPage.evaluate(() => window.__copied);
     const rejToast = await rejectPage.locator('[role="status"]').first().textContent();
-    ok(!rejBox.includes("@T1("), "extension: a box that refuses edits keeps the user's text (no silent failure, nothing wiped)");
-    ok(rejCopied && rejCopied.includes("@T1("), "extension: the shrunk prompt is copied to the clipboard when the box blocks auto-edit");
-    ok(rejCopied && eq(tableDecode(rejCopied.slice(rejCopied.indexOf("@T1("))), recs), "extension: the clipboard copy is the lossless @T1 table");
+    ok(!rejBox.includes("@T2 "), "extension: a box that refuses edits keeps the user's text (no silent failure, nothing wiped)");
+    ok(rejCopied && rejCopied.includes("@T2 "), "extension: the shrunk prompt is copied to the clipboard when the box blocks auto-edit");
+    ok(rejCopied && eq(tableDecode(rejCopied.slice(rejCopied.indexOf("@T2 "))), recs), "extension: the clipboard copy is the lossless @T2 table");
     ok(/copied/i.test(rejToast || ""), "extension: the toast tells the user it copied the result to paste with Ctrl+V");
     await rejectPage.close();
 
@@ -193,12 +193,12 @@ function sampleRecords() {
     ];
     // the paste-in instruction must name the format and the null token
     const hintText = await page.inputValue("#hint-out");
-    ok(hintText.includes("@T1(") && hintText.includes("\\N"), "output: paste-in instruction names @T1 and the \\N null token");
+    ok(hintText.includes("@T2 ") && hintText.includes("\\N"), "output: paste-in instruction names @T2 and the \\N null token");
 
     await page.click("#decsample");
     await page.waitForFunction(() => (document.getElementById("decode-out").value || "").includes("Riley Brooks"), { timeout: 5000 });
     const decodedOut = await page.inputValue("#decode-out");
-    ok(!decodedOut.includes("@T1("), "output: the @T1 reply was expanded (no table marker left)");
+    ok(!decodedOut.includes("@T2 "), "output: the @T2 reply was expanded (no table marker left)");
     const decArr = JSON.parse(decodedOut.match(/\[[\s\S]*\]/)[0]);
     ok(eq(decArr, expectReply), "output: decoded reply equals the original records (lossless round-trip)");
     const statsText = await page.textContent("#decode-stats");

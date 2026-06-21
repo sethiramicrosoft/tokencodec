@@ -1,5 +1,5 @@
 // Accuracy benchmark: does a real LLM answer questions about data just as well
-// when the data is given as the compact @T1 table as it does from raw JSON?
+// when the data is given as the compact @T2 table as it does from raw JSON?
 //
 // This is the decisive test for TokenCodec's "feed it to the model" promise.
 // The codec being lossless is already proven by the fuzz tests; this measures
@@ -57,9 +57,9 @@ const QUESTIONS = [
 ];
 
 const LEGEND =
-  "The data below is a compact table. The first line `@T1(col:type,...)` names the columns once; " +
-  "every following line is one record, comma-separated, in that column order. " +
-  "Types: s=string, i=integer, f=float, b=boolean (1=true, 0=false); \\N means null; string values may be quoted.";
+  "The data below is a compact table. The first line `@T2 col type col type ...` names the columns once; " +
+  "every following line is one record, space-delimited, in that column order. " +
+  "Types: string, int, float, bool (1=true, 0=false); \\N means null; string values are quoted.";
 
 function questionsText(data) {
   return QUESTIONS.map((q, i) => `${q.id}. ${q.text.replace("__NAME__", q.name ? q.name(data) : "")}`).join("\n");

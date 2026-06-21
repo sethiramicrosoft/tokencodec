@@ -1,5 +1,5 @@
 // Output-side benchmark: when the model RETURNS structured data, does emitting the
-// compact @T1 table (which we can decode losslessly) save output tokens versus
+// compact @T2 table (which we can decode losslessly) save output tokens versus
 // returning JSON - and does the model produce the format correctly?
 //
 // Input compression is proven elsewhere. This measures the harder direction:
@@ -44,10 +44,10 @@ function generate() {
 
   const promptTable =
     `${TASK}\n\nRecords:\n${input}\n\n` +
-    "Return ONLY a compact @T1 table of the matching records, no prose and no code fence, in EXACTLY this format:\n" +
-    "first line: @T1(name:s,dept:s,score:i,region:s)\n" +
-    "then one record per line, comma-separated, in that column order; quote every string value with double quotes; integers bare.\n" +
-    'Example row: "Jane Doe","Engineering",91,"NA"';
+    "Return ONLY a compact @T2 table of the matching records, no prose and no code fence, in EXACTLY this format:\n" +
+    "first line: @T2 name string dept string score int region string\n" +
+    "then one record per line, space-delimited, in that column order; quote every string value with double quotes; integers bare.\n" +
+    'Example row: "Jane Doe" "Engineering" 91 "NA"';
 
   fs.writeFileSync(path.join(dir, "prompt_out_json.txt"), promptJson);
   fs.writeFileSync(path.join(dir, "prompt_out_table.txt"), promptTable);
@@ -64,7 +64,7 @@ function score(variant, replyPath) {
   let parsed, ok = false, err = "";
   try {
     if (variant === "json") parsed = JSON.parse(raw.slice(raw.indexOf("["), raw.lastIndexOf("]") + 1));
-    else parsed = tableDecode(raw.slice(raw.indexOf("@T1(")));
+    else parsed = tableDecode(raw.slice(raw.indexOf("@T2 ")));
     ok = eq(parsed, exp);
   } catch (e) { err = e.message; }
   console.log(`[${variant}] output tokens: ${outTokens} | correct: ${ok}${err ? " | parse error: " + err : ""}`);

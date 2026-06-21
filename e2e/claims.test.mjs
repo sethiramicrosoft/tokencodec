@@ -24,7 +24,7 @@ const web = read("web/index.html");
 
 // 1. The wire-format example in the README actually decodes to the records it shows.
 {
-  const m = readme.match(/@T1\(name:s,score:i,csat:f,remote:b\)\r?\n[^\r\n]+\r?\n[^\r\n]+/);
+  const m = readme.match(/@T2 name string score int csat float remote bool\r?\n[^\r\n]+\r?\n[^\r\n]+/);
   ok(!!m, "README wire-format example block found");
   if (m) {
     const decoded = tableDecode(m[0].replace(/\r/g, ""));
@@ -35,25 +35,25 @@ const web = read("web/index.html");
   }
 }
 
-// 2. Input benchmark: 1,960 -> 900 tokens (54% smaller), and the prose says so.
+// 2. Input benchmark: 1,960 -> 948 tokens (52% smaller), and the prose says so.
 {
   node("benchmark/benchmark.mjs", "generate");
   const meta = JSON.parse(read("benchmark/meta.json"));
-  ok(meta.tokens_json === 1960 && meta.tokens_table === 900 && meta.saved_pct === 54,
-    `input benchmark is 1960 -> 900 (54%) (got ${meta.tokens_json} -> ${meta.tokens_table}, ${meta.saved_pct}%)`);
-  ok(results.includes("900 vs 1,960") && results.includes("54% smaller"), "RESULTS.md states 900 vs 1,960 / 54% smaller");
-  ok(readme.includes("54%"), "README states 54%");
+  ok(meta.tokens_json === 1960 && meta.tokens_table === 948 && meta.saved_pct === 52,
+    `input benchmark is 1960 -> 948 (52%) (got ${meta.tokens_json} -> ${meta.tokens_table}, ${meta.saved_pct}%)`);
+  ok(results.includes("948 vs 1,960") && results.includes("52% smaller"), "RESULTS.md states 948 vs 1,960 / 52% smaller");
+  ok(readme.includes("52%"), "README states 52%");
 }
 
-// 3. Output benchmark: the 10-record answer is 192 tokens as compact JSON, 130 as @T1 (32% fewer).
+// 3. Output benchmark: the 10-record answer is 192 tokens as compact JSON, 147 as @T2 (23% fewer).
 {
   node("benchmark/output_benchmark.mjs", "generate");
   const exp = JSON.parse(read("benchmark/out_truth.json"));
   const j = tok(JSON.stringify(exp)), t = tok(tableEncode(exp));
-  ok(j === 192 && t === 130, `output answer is compact-JSON 192 vs @T1 130 (got ${j} vs ${t})`);
-  ok(Math.round(100 * (j - t) / j) === 32, "output saving rounds to 32%");
-  ok(results.includes("192 -> 130") && results.includes("192 tokens as compact JSON vs 130"), "RESULTS.md states 192 -> 130 / compact JSON");
-  ok(readme.includes("130 tokens as") && readme.includes("32% fewer"), "README states 130 vs 192 / 32% fewer");
+  ok(j === 192 && t === 147, `output answer is compact-JSON 192 vs @T2 147 (got ${j} vs ${t})`);
+  ok(Math.round(100 * (j - t) / j) === 23, "output saving rounds to 23%");
+  ok(results.includes("192 -> 147") && results.includes("192 tokens as compact JSON vs 147"), "RESULTS.md states 192 -> 147 / compact JSON");
+  ok(readme.includes("147 tokens as") && readme.includes("23% fewer"), "README states 147 vs 192 / 23% fewer");
 }
 
 // 4. Pricing snapshot really yields the 4-8x output:input ratio the README cites.

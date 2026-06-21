@@ -2,18 +2,18 @@
 
 Run with the harness in this folder. One 30-row dataset, 10 questions with
 code-computed ground truth, two formats (raw JSON vs the `@T1` table + a one-line
-legend). The table prompt is **54% smaller** (900 vs 1,960 tokens, legend
+legend). The table prompt is **52% smaller** (948 vs 1,960 tokens, legend
 included).
 
 | Model (read-only) | JSON accuracy | `@T1` table accuracy | Tokens saved |
 |---|---|---|---|
-| GPT-5.4-mini | 10/10 | **10/10** | 54% |
-| Claude Haiku 4.5 | 10/10 | **8/10** | 54% |
+| GPT-5.4-mini | 10/10 | **10/10** | 52% |
+| Claude Haiku 4.5 | 10/10 | **8/10** | 52% |
 
 ## What this says, honestly
 
 **The good (the headline):** GPT-5.4-mini answered the compact table **exactly as
-accurately as JSON** - 10/10 either way - while spending 54% fewer tokens. For that
+accurately as JSON** - 10/10 either way - while spending 52% fewer tokens. For that
 model the compression was free. Across both models, every **reasoning** task was
 preserved on the table: direct lookup, filter-count, argmax and argmin by name,
 most-common category, count-by-category, and the rounded average all matched JSON.
@@ -59,8 +59,8 @@ Measured with `output_benchmark.mjs` - a filter-and-sort task returning 10 recor
 
 | Model | Returned as JSON | Returned as `@T1` | Output tokens |
 |---|---|---|---|
-| GPT-5.4-mini | correct | correct | 192 -> 130 (**32% fewer**) |
-| Claude Haiku 4.5 | see note | see note | 192 -> 130 (**32% fewer**) |
+| GPT-5.4-mini | correct | correct | 192 -> 147 (**23% fewer**) |
+| Claude Haiku 4.5 | see note | see note | 192 -> 147 (**23% fewer**) |
 
 - **Both models produced valid `@T1` that decoded losslessly.** The format is
   reliably emittable for a flat schema.
@@ -68,8 +68,8 @@ Measured with `output_benchmark.mjs` - a filter-and-sort task returning 10 recor
   returned the correct 10 records in both formats but mis-ordered a tie-break
   *identically* in JSON and `@T1` - a sorting-instruction slip, not a format fault.
   So choosing `@T1` did not cost any correctness; it only saved tokens.
-- **Savings: 32% fewer output tokens** for the same answer. The 10-record answer is
-  **192 tokens as compact JSON vs 130 as `@T1`** (o200k tokenizer) - a deterministic
+- **Savings: 23% fewer output tokens** for the same answer. The 10-record answer is
+  **192 tokens as compact JSON vs 147 as `@T1`** (o200k tokenizer) - a deterministic
   property of the formats: tokenize `JSON.stringify(out_truth.json)` vs
   `tableEncode(out_truth.json)` to reproduce. (Pretty-printed JSON is larger; the 192
   figure is compact JSON, which is what a token-conscious caller would emit.)
@@ -78,4 +78,3 @@ How to use it: ask the model to return `@T1` (give it the one-line format spec),
 then decode the reply with `tableDecode` from `engine.mjs`. Honest caveat: tested on
 a flat schema; nested or highly irregular output is harder for a model to format,
 so measure before relying on it.
-

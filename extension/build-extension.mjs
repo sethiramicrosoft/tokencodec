@@ -94,7 +94,7 @@ const ui = `
   const btn = mkButton("\\u{1F343} Shrink prompt", "96px", "#1452d9");
   btn.setAttribute("aria-label", "Shrink the current prompt with TokenCodec");
   const replyBtn = mkButton("Compact reply", "56px", "#0b7a52");
-  replyBtn.setAttribute("aria-label", "Ask the model to reply in a compact @T1 table to save output tokens");
+  replyBtn.setAttribute("aria-label", "Ask the model to reply in a compact @T2 table to save output tokens");
 
   const toast = document.createElement("div");
   toast.setAttribute("role", "status");
@@ -127,21 +127,21 @@ const ui = `
   });
 
   // OUTPUT side: append a one-line rule so the model answers tabular data as a
-  // compact @T1 table (fewer output tokens). Stays entirely inside your prompt box;
+  // compact @T2 table (fewer output tokens). Stays entirely inside your prompt box;
   // decode the reply on the hosted page or with the middleware.
-  const REPLY_HINT = "Reply rule: when your answer is a list of items that share the same fields, return a compact TokenCodec @T1 table, not JSON - a header line @T1(col:type,...) with type s=text i=int f=float b=bool, then one comma-separated row per item, text in double quotes, an empty value as \\\\N. Use normal prose otherwise.";
+  const REPLY_HINT = "Reply rule: when your answer is a list of items that share the same fields, return a compact TokenCodec @T2 table, not JSON - a header line @T2 col1 int col2 string col3 float ... where types are int, string, float, or bool, then one space-delimited row per item, text in double quotes, and null as \\\\N. Use normal prose otherwise.";
   replyBtn.addEventListener("click", () => {
     const el = getEditable();
     if (!el) { show("Click into the prompt box first, then press Compact reply."); return; }
     const text = readText(el);
-    if (text && text.indexOf("@T1(col:type") !== -1) { show("The compact-reply rule is already in your prompt."); return; }
+    if (text && text.indexOf("Reply rule:") !== -1) { show("The compact-reply rule is already in your prompt."); return; }
     const next = (text && text.trim()) ? text.replace(/\\s*$/, "") + "\\n\\n" + REPLY_HINT : REPLY_HINT;
     if (writeText(el, next)) {
-      show("Added a reply-saver: tabular answers come back as a compact @T1 table (cheaper output). Paste the reply into the TokenCodec page to read it. Worth it when you expect a list or table.");
+      show("Added a reply-saver: tabular answers come back as a compact @T2 table (cheaper output). Paste the reply into the TokenCodec page to read it. Worth it when you expect a list or table.");
     } else {
       copyText(next).then(ok => show(ok
         ? "This box blocks auto-edit, so I copied your prompt with the reply-saver rule added. Press Ctrl+V to paste it in."
-        : "This box blocks auto-edit. Add the @T1 reply rule to your prompt manually."));
+        : "This box blocks auto-edit. Add the @T2 reply rule to your prompt manually."));
     }
   });
 

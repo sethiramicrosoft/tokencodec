@@ -188,7 +188,7 @@ https://sethiramicrosoft.github.io/tokencodec/
 | **Rules installer** | Easiest (one-time install) | Via behavior change (queries, not pastes) | All tools (including Copilot) | ✓ Working |
 | **Web interface** | Manual (copy-paste each time) | 50–70% on data at scale* | All tools | ✓ Working |
 
-**\*When compression helps**: The @T1 format reduces character count 50–70%, but pays off in tokens only at scale (100+ records). For small payloads, format overhead can increase token cost. **Use compression when pasting large datasets; use the rules installer for interactive coding.**
+**\*When compression helps**: The @T2 format reduces character count 50–70%, but pays off in tokens only at scale (100+ records). For small payloads, format overhead can increase token cost. **Use compression when pasting large datasets; use the rules installer for interactive coding.**
 
 
 ### The hosted page is live
@@ -429,7 +429,7 @@ To cut the **reply** too, ask for an `@T1` table and expand it back to JSON on r
 ```js
 import { withRoundTrip } from "./middleware/compress.mjs";
 
-// Compresses the request, adds OUTPUT_FORMAT_HINT so the model replies in @T1 for
+// Compresses the request, adds OUTPUT_FORMAT_HINT so the model replies in @T2 for
 // tabular answers, then decodes that reply back to JSON. `send` returns reply text.
 const { text, stats } = await withRoundTrip(rawMessages, async (messages) => {
   const r = await openai.chat.completions.create({ model, messages });
@@ -465,7 +465,7 @@ in-place re-encode and the toast are all the actual extension.
 
 **After - one click on "Shrink prompt" re-encodes it in place to a compact `@T1` table, and a toast shows what you saved:**
 
-![After clicking Shrink prompt: the same eight orders are re-encoded in the message box as a compact @T1 table - the header @T1(id:i,customer:s,region:s,total:f,paid:b) and eight comma-separated rows - with a toast reading "Shrunk ~64% (about 152 fewer tokens)".](docs/screenshots/extension-after.png)
+![After clicking Shrink prompt: the same eight orders are re-encoded in the message box as a compact @T2 table - the header @T2 id int customer string region string total float paid bool and eight space-delimited rows - with a toast reading "Shrunk ~64% (about 152 fewer tokens)".](docs/screenshots/extension-after.png)
 
 ### How it works
 
@@ -524,7 +524,7 @@ Gemini, click into the message box, and paste a JSON array such as:
 [{"id":1,"region":"APAC","total":248.5,"paid":true},{"id":2,"region":"EMEA","total":76,"paid":false}]
 ```
 
-Press **Shrink prompt**. The box should collapse to a compact `@T1(...)` table and a toast
+Press **Shrink prompt**. The box should collapse to a compact `@T1` table and a toast
 should report the tokens saved (see the [before/after screenshots](#what-it-looks-like)
 above, which come from this exact flow). Press **Compact reply** to append the one-line
 reply rule. Then press the chat's own send button yourself - the model reads the table
@@ -579,21 +579,21 @@ conservative and honest about their edges.
 JSON repeats every column name on every row. A header-once typed table doesn't:
 
 ```
-@T1(name:s,score:i,csat:f,remote:b)
-"Jordan Avery",87,4.6,1
-"Sam Rivera",92,4.9,0
+@T2 name string score int csat float remote bool
+"Jordan Avery" 87 4.6 1
+"Sam Rivera" 92 4.9 0
 ```
 
-Header is `@T<version>(name:type,...)`, current version `1`. Types: `s` string
-(always quoted; `"` doubled, control chars escaped), `i` integer, `f` float,
-`b` boolean (`1`/`0`); null is the unquoted sentinel `\N` (a quoted `"\N"` is the
+Header is `@T<version> col type col type ...`, current version `1`. Types: `string`
+(always quoted; `"` doubled, control chars escaped), `int` integer, `float` float,
+`bool` boolean (`1`/`0`); null is the unquoted sentinel `\N` (a quoted `"\N"` is the
 literal text).
 
 ## Does the model still read it correctly?
 
 Lossless storage is one thing; an LLM answering just as well from the compact
 table is another, so it is measured separately (`benchmark/`). On a 30-row set with
-10 questions, GPT-5.4-mini scored **10/10 on the table, identical to JSON, at 54%
+10 questions, GPT-5.4-mini scored **10/10 on the table, identical to JSON, at 52%
 fewer tokens**; Claude Haiku 4.5 matched on every lookup/filter/compare task and
 only slipped on raw multi-row arithmetic (a 30-number sum) - which you should
 offload from the model anyway. Reproduce it yourself with `benchmark/benchmark.mjs`;
@@ -625,7 +625,7 @@ one thing that does **not** help.
 The installed rules tell your agent to be brief, send small diffs instead of reprinting
 whole files (the biggest output cost in agentic coding), and return uniform lists as a
 compact `@T1` table. Measured (`benchmark/output_benchmark.mjs`): the 10-record answer is
-**130 tokens as `@T1` vs 192 as compact JSON - 32% fewer** - decoding losslessly, with no
+**147 tokens as `@T1` vs 192 as compact JSON - 23% fewer** - decoding losslessly, with no
 accuracy change per model for GPT-5.4-mini and Claude Haiku 4.5. Delivered through the
 installed rules (CLI/Codex/Claude Code), the web *"Shrink the reply too"* panel, the
 extension's *Compact reply* button, and the middleware's `OUTPUT_FORMAT_HINT`.
@@ -657,13 +657,13 @@ npm run test:all  # everything
 
 What's covered, end to end:
 
-- **Engine** (49 checks + an 8,000-trial lossless fuzz): JSON and NDJSON round-trip,
+- **Engine** (51 checks + an 8,000-trial lossless fuzz): JSON and NDJSON round-trip,
   hostile-input safety, the numeric/format guarantees in Part 3, and the receive-side
   `decodeTables` round-trip (expands `@T1` replies back to JSON, ignores non-tables).
 - **Installer** (55 checks): idempotency, content preservation, `--check`, `--remove`
   (including `--remove --dry-run` previews nothing destructive), symlink refusal,
   malformed-block repair, directory-target handling.
-- **Middleware** (21 checks): input compression is lossless and reports real savings;
+- **Middleware** (23 checks): input compression is lossless and reports real savings;
   the output round-trip injects the format hint and decodes `@T1` replies back to JSON.
 - **E2E node** (16 checks): the committed `web/index.html` and `extension/content.js`
   are in sync with `engine.mjs` (no drift), `serve.mjs` blocks path traversal, and the

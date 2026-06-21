@@ -23,7 +23,7 @@ const FILLER_RE = /\bcould you please\b|\bcould you\b|\bi would like you to\b|\b
 const MAX_JSON_CANDIDATE_CHARS = 1_000_000; // ignore absurdly large bracketed spans
 const MAX_JSON_ARRAYS = 128;                // cap how many arrays we transform
 
-// ---- lossless table codec (@T1 dialect) ----
+// ---- lossless table codec (@T2 dialect, with @T1 decode compatibility) ----
 function inferType(values) {
   let seenBool = false, seenNum = false, seenStr = false, seenFloat = false, allNull = true;
   for (const v of values) {
@@ -68,7 +68,7 @@ function tableEncode(arr) {
   const keys = Object.keys(arr[0]);
   if (keys.length === 0) return null;
   // reserved/structural keys would corrupt the header or pollute the prototype
-  if (keys.some(k => /[,:()"\n\r]/.test(k) || k === "__proto__")) return null;
+  if (keys.some(k => /[,:()"\n\r\s]/.test(k) || k === "__proto__")) return null;
   const keySet = new Set(keys);
   for (const o of arr) {                                              // every record must share the exact key set
     const k = Object.keys(o);
@@ -80,55 +80,119 @@ function tableEncode(arr) {
     if (!t) return null;
     types[key] = t;
   }
-  const header = "@T1(" + keys.map(k => k + ":" + types[k]).join(",") + ")";
-  const rows = arr.map(o => keys.map(k => encodeField(o[k], types[k])).join(","));
+  // Map type codes to English names for better tokenization
+  const typeNames = { "i": "int", "s": "string", "f": "float", "b": "bool" };
+  const header = "@T2 " + keys.map(k => k + " " + typeNames[types[k]]).join(" ");
+  const rows = arr.map(o => keys.map(k => encodeField(o[k], types[k])).join(" "));
   return header + "\n" + rows.join("\n");
 }
 
-// State-machine CSV parser. Returns rows of { raw, quoted }.
-//   inQuotes    - inside a quoted field (commas are literal)
-//   fieldStarted- a quote opened this field (so a later quote is data, not open)
-//   pending     - a field is in progress and must be flushed (handles empty fields)
-// Cells never contain a raw newline (they are escaped), so rows are line-delimited.
-function parseBody(body) {
-  const rows = []; let row = []; let field = ""; let quoted = false;
-  let inQuotes = false, fieldStarted = false, pending = false, i = 0;
-  const flushField = () => { row.push({ raw: field, quoted }); field = ""; quoted = false; fieldStarted = false; pending = false; };
-  const flushRow = () => { flushField(); rows.push(row); row = []; };
-  while (i < body.length) {
-    const ch = body[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (body[i + 1] === '"') { field += '"'; i += 2; continue; }
-        inQuotes = false; i++; continue;
+// Space-delimited parser that respects CSV-style quoted fields
+function parseSpaceBody(body) {
+  const rows = [];
+  const lines = body.split("\n");
+  for (const line of lines) {
+    if (line === "") continue; // skip blank lines
+    const row = [];
+    let field = "";
+    let inQuotes = false;
+    let i = 0;
+    while (i < line.length) {
+      const ch = line[i];
+      if (inQuotes) {
+        field += ch;
+        if (ch === '"') {
+          if (line[i + 1] === '"') { field += '"'; i += 2; continue; }
+          inQuotes = false;
+        }
+        i++; 
+        continue;
       }
-      field += ch; i++; continue;
+      if (ch === '"') { inQuotes = true; field += ch; i++; continue; }
+      if (ch === " ") { if (field !== "") row.push({ raw: field, quoted: field.startsWith('"') && field.endsWith('"') }); field = ""; i++; continue; }
+      field += ch; i++;
     }
-    if (ch === '"' && !fieldStarted) { inQuotes = true; quoted = true; fieldStarted = true; pending = true; i++; continue; }
-    if (ch === ",") { flushField(); pending = true; i++; continue; }
-    if (ch === "\n") { if (pending || row.length > 0) flushRow(); pending = false; i++; continue; }
-    if (ch === "\r") { i++; continue; }
-    field += ch; fieldStarted = true; pending = true; i++;
+    if (field !== "" || row.length > 0) row.push({ raw: field, quoted: field.startsWith('"') && field.endsWith('"') });
+    if (row.length > 0) rows.push(row);
   }
-  if (pending || row.length > 0) flushRow();
   return rows;
 }
 
-function tableDecode(text) {
+// Legacy parser for @T1(name:s,...) rows (comma-separated, CSV-style quoted cells).
+function parseCsvBody(body) {
+  const rows = [];
+  const lines = body.split("\n");
+  for (const line of lines) {
+    if (line === "") continue;
+    const row = [];
+    let field = "";
+    let inQuotes = false;
+    let i = 0;
+    while (i < line.length) {
+      const ch = line[i];
+      if (inQuotes) {
+        field += ch;
+        if (ch === '"') {
+          if (line[i + 1] === '"') { field += '"'; i += 2; continue; }
+          inQuotes = false;
+        }
+        i++;
+        continue;
+      }
+      if (ch === '"') { inQuotes = true; field += ch; i++; continue; }
+      if (ch === ",") { row.push({ raw: field, quoted: field.startsWith('"') && field.endsWith('"') }); field = ""; i++; continue; }
+      field += ch; i++;
+    }
+    if (field !== "" || row.length > 0) row.push({ raw: field, quoted: field.startsWith('"') && field.endsWith('"') });
+    if (row.length > 0) rows.push(row);
+  }
+  return rows;
+}
+
+function parseT2Header(header) {
+  const hm = header.match(/^@T2\s+(.+)$/);
+  if (!hm) return null;
+  const typeMap = { "int": "i", "string": "s", "float": "f", "bool": "b" };
+  const headerParts = hm[1].split(/\s+/);
+  if (headerParts.length % 2 !== 0) throw new Error("header has odd number of tokens");
+  const cols = [];
+  for (let i = 0; i < headerParts.length; i += 2) {
+    const name = headerParts[i];
+    const tn = headerParts[i + 1];
+    const t = typeMap[tn];
+    if (!t) throw new Error(`unknown type: ${tn}`);
+    cols.push([name, t]);
+  }
+  return { cols, rowParser: parseSpaceBody, legacy: false };
+}
+
+function parseT1LegacyHeader(header) {
+  const hm = header.match(/^@T1\((.*)\)$/);
+  if (!hm) return null;
+  const inner = hm[1].trim();
+  const cols = inner === "" ? [] : inner.split(",").map(part => {
+    const p = part.split(":");
+    if (p.length !== 2 || !p[0] || !p[1]) throw new Error("bad legacy header column");
+    return [p[0], p[1]];
+  });
+  return { cols, rowParser: parseCsvBody, legacy: true };
+}
+
+function tableDecode(text, { onLegacyFormat } = {}) {
   const nl = text.indexOf("\n");
   const header = nl === -1 ? text : text.slice(0, nl);
   const body = nl === -1 ? "" : text.slice(nl + 1);
-  const m = header.match(/^@T(\d+)\((.*)\)$/);
-  if (!m) throw new Error("bad table header");
-  const version = Number(m[1]);
-  if (version !== 1) throw new Error(`unsupported table version ${version}`);
-  const cols = m[2].split(",").map(s => { const idx = s.lastIndexOf(":"); return [s.slice(0, idx), s.slice(idx + 1)]; });
+  const parsed = parseT2Header(header) || parseT1LegacyHeader(header);
+  if (!parsed) throw new Error("bad table header");
+  const { cols, rowParser, legacy } = parsed;
+  if (legacy && typeof onLegacyFormat === "function") onLegacyFormat();
   for (const [name, t] of cols) {
     if (name === "__proto__") throw new Error(`unsafe column name: ${name}`); // symmetric with encode; never put a __proto__ key on a decoded row
     if (t.length !== 1 || !"sifb".includes(t)) throw new Error(`unknown type tag: ${t}`);
+    if (/\s/.test(name)) throw new Error(`unsafe column name: ${name}`);
   }
   const out = [];
-  for (const row of parseBody(body)) {
+  for (const row of rowParser(body)) {
     if (row.length === 1 && row[0].raw === "" && !row[0].quoted) continue; // skip blank line
     if (row.length !== cols.length) throw new Error(`row width mismatch: expected ${cols.length}, got ${row.length}`);
     const obj = Object.create(null);                                  // defence in depth vs __proto__ cells
@@ -137,7 +201,9 @@ function tableDecode(text) {
       if (!cell.quoted && cell.raw === "\\N") { obj[name] = null; return; }
       if (t === "s") {
         if (!cell.quoted) throw new Error(`unquoted string cell for ${name}`);
-        obj[name] = unescapeCell(cell.raw);
+        // Strip quotes and unescape
+        const unquoted = cell.raw.slice(1, -1).replace(/""/g, '"');
+        obj[name] = unescapeCell(unquoted);
       } else if (t === "b") {
         if (cell.raw !== "0" && cell.raw !== "1") throw new Error(`bad bool cell for ${name}: ${cell.raw}`);
         obj[name] = cell.raw === "1";
@@ -155,12 +221,12 @@ function tableDecode(text) {
 }
 
 // Receive-side inverse of the table encoder. Scans free-form model OUTPUT for
-// embedded @T1(...) blocks and expands each one back into a JSON array, in
-// place. This is what makes "reply in @T1 to save output tokens" a real
+// embedded @T1/@T2 blocks and expands each one back into a JSON array, in
+// place. This is what makes "reply in @T2 to save output tokens" a real
 // round-trip instead of advice: the model emits a compact table, your app still
 // gets JSON. Anything that is not a valid table is left exactly as written - it
 // never throws, and never invents or drops data.
-function decodeTables(text, { space = 0 } = {}) {
+function decodeTables(text, { space = 0, onLegacyFormat } = {}) {
   if (typeof text !== "string" || !text.includes("@T")) return text;
   const MAX_SHRINK_ATTEMPTS = 64;       // bound the retry loop on hostile malformed blocks
   const MAX_BLOCK_CHARS = 256_000;      // never spend O(n^2) reparsing an enormous block
@@ -168,18 +234,16 @@ function decodeTables(text, { space = 0 } = {}) {
   const out = [];
   let i = 0;
   while (i < lines.length) {
-    if (!/^\s*@T\d+\(.*\)\s*$/.test(lines[i])) { out.push(lines[i]); i++; continue; }
+    if (!/^\s*@T\d+(?:\s+|\()/.test(lines[i])) { out.push(lines[i]); i++; continue; }
     const trimmed = lines[i].trimStart();
     const indent = lines[i].slice(0, lines[i].length - trimmed.length);
     const header = trimmed.trimEnd();
-    // Fail fast on anything that is not a version-1 header: a bogus @T2(...) or a
-    // malformed header is left as prose without ever entering the retry loop.
-    const hm = header.match(/^@T(\d+)\((.*)\)$/);
-    if (!hm || hm[1] !== "1") { out.push(lines[i]); i++; continue; }
+    // Fail fast on anything that is not a recognized table header form.
+    if (!/^@T2\s+.+$/.test(header) && !/^@T1\(.+\)$/.test(header)) { out.push(lines[i]); i++; continue; }
     // Gather contiguous candidate rows: stop at a blank line, the next table
     // header, end of input, or once the block grows too large to transform safely.
     let j = i + 1, blockChars = header.length;
-    while (j < lines.length && lines[j].trim() !== "" && !/^\s*@T\d+\(/.test(lines[j]) && blockChars <= MAX_BLOCK_CHARS) {
+    while (j < lines.length && lines[j].trim() !== "" && !/^\s*@T\d+(?:\s+|\()/.test(lines[j]) && blockChars <= MAX_BLOCK_CHARS) {
       blockChars += lines[j].length + 1; j++;
     }
     if (blockChars > MAX_BLOCK_CHARS) { out.push(lines[i]); i++; continue; }   // oversized -> leave untouched
@@ -192,7 +256,7 @@ function decodeTables(text, { space = 0 } = {}) {
     for (let k = j; k >= minK; k--) {
       const bodyLines = lines.slice(i + 1, k).map(l => (l.startsWith(indent) ? l.slice(indent.length) : l));
       try {
-        const v = tableDecode(header + "\n" + bodyLines.join("\n"));
+        const v = tableDecode(header + "\n" + bodyLines.join("\n"), { onLegacyFormat });
         if (v.length >= 1) { decoded = v; end = k; break; }
       } catch { /* try fewer rows */ }
     }
@@ -426,7 +490,7 @@ function optimize(text) {
   const btn = mkButton("\u{1F343} Shrink prompt", "96px", "#1452d9");
   btn.setAttribute("aria-label", "Shrink the current prompt with TokenCodec");
   const replyBtn = mkButton("Compact reply", "56px", "#0b7a52");
-  replyBtn.setAttribute("aria-label", "Ask the model to reply in a compact @T1 table to save output tokens");
+  replyBtn.setAttribute("aria-label", "Ask the model to reply in a compact @T2 table to save output tokens");
 
   const toast = document.createElement("div");
   toast.setAttribute("role", "status");
@@ -459,21 +523,21 @@ function optimize(text) {
   });
 
   // OUTPUT side: append a one-line rule so the model answers tabular data as a
-  // compact @T1 table (fewer output tokens). Stays entirely inside your prompt box;
+  // compact @T2 table (fewer output tokens). Stays entirely inside your prompt box;
   // decode the reply on the hosted page or with the middleware.
-  const REPLY_HINT = "Reply rule: when your answer is a list of items that share the same fields, return a compact TokenCodec @T1 table, not JSON - a header line @T1(col:type,...) with type s=text i=int f=float b=bool, then one comma-separated row per item, text in double quotes, an empty value as \\N. Use normal prose otherwise.";
+  const REPLY_HINT = "Reply rule: when your answer is a list of items that share the same fields, return a compact TokenCodec @T2 table, not JSON - a header line @T2 col1 int col2 string col3 float ... where types are int, string, float, or bool, then one space-delimited row per item, text in double quotes, and null as \\N. Use normal prose otherwise.";
   replyBtn.addEventListener("click", () => {
     const el = getEditable();
     if (!el) { show("Click into the prompt box first, then press Compact reply."); return; }
     const text = readText(el);
-    if (text && text.indexOf("@T1(col:type") !== -1) { show("The compact-reply rule is already in your prompt."); return; }
+    if (text && text.indexOf("Reply rule:") !== -1) { show("The compact-reply rule is already in your prompt."); return; }
     const next = (text && text.trim()) ? text.replace(/\s*$/, "") + "\n\n" + REPLY_HINT : REPLY_HINT;
     if (writeText(el, next)) {
-      show("Added a reply-saver: tabular answers come back as a compact @T1 table (cheaper output). Paste the reply into the TokenCodec page to read it. Worth it when you expect a list or table.");
+      show("Added a reply-saver: tabular answers come back as a compact @T2 table (cheaper output). Paste the reply into the TokenCodec page to read it. Worth it when you expect a list or table.");
     } else {
       copyText(next).then(ok => show(ok
         ? "This box blocks auto-edit, so I copied your prompt with the reply-saver rule added. Press Ctrl+V to paste it in."
-        : "This box blocks auto-edit. Add the @T1 reply rule to your prompt manually."));
+        : "This box blocks auto-edit. Add the @T2 reply rule to your prompt manually."));
     }
   });
 

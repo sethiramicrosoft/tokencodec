@@ -21,7 +21,7 @@ const FILLER_RE = /\bcould you please\b|\bcould you\b|\bi would like you to\b|\b
 const MAX_JSON_CANDIDATE_CHARS = 1_000_000; // ignore absurdly large bracketed spans
 const MAX_JSON_ARRAYS = 128;                // cap how many arrays we transform
 
-// ---- lossless table codec (@T1 dialect) ----
+// ---- lossless table codec (@T2 dialect, with @T1 decode compatibility) ----
 function inferType(values) {
   let seenBool = false, seenNum = false, seenStr = false, seenFloat = false, allNull = true;
   for (const v of values) {
@@ -66,7 +66,7 @@ export function tableEncode(arr) {
   const keys = Object.keys(arr[0]);
   if (keys.length === 0) return null;
   // reserved/structural keys would corrupt the header or pollute the prototype
-  if (keys.some(k => /[,:()"\n\r]/.test(k) || k === "__proto__")) return null;
+  if (keys.some(k => /[,:()"\n\r\s]/.test(k) || k === "__proto__")) return null;
   const keySet = new Set(keys);
   for (const o of arr) {                                              // every record must share the exact key set
     const k = Object.keys(o);
@@ -80,7 +80,7 @@ export function tableEncode(arr) {
   }
   // Map type codes to English names for better tokenization
   const typeNames = { "i": "int", "s": "string", "f": "float", "b": "bool" };
-  const header = "@T1 " + keys.map(k => k + " " + typeNames[types[k]]).join(" ");
+  const header = "@T2 " + keys.map(k => k + " " + typeNames[types[k]]).join(" ");
   const rows = arr.map(o => keys.map(k => encodeField(o[k], types[k])).join(" "));
   return header + "\n" + rows.join("\n");
 }
@@ -116,20 +116,42 @@ function parseSpaceBody(body) {
   return rows;
 }
 
-export function tableDecode(text) {
-  const nl = text.indexOf("\n");
-  const header = nl === -1 ? text : text.slice(0, nl);
-  const body = nl === -1 ? "" : text.slice(nl + 1);
-  const m = header.match(/^@T(\d+)\s+(.+)$/);
-  if (!m) throw new Error("bad table header");
-  const version = Number(m[1]);
-  if (version !== 1) throw new Error(`unsupported table version ${version}`);
-  
-  // Map English type names back to codes
+// Legacy parser for @T1(name:s,...) rows (comma-separated, CSV-style quoted cells).
+function parseCsvBody(body) {
+  const rows = [];
+  const lines = body.split("\n");
+  for (const line of lines) {
+    if (line === "") continue;
+    const row = [];
+    let field = "";
+    let inQuotes = false;
+    let i = 0;
+    while (i < line.length) {
+      const ch = line[i];
+      if (inQuotes) {
+        field += ch;
+        if (ch === '"') {
+          if (line[i + 1] === '"') { field += '"'; i += 2; continue; }
+          inQuotes = false;
+        }
+        i++;
+        continue;
+      }
+      if (ch === '"') { inQuotes = true; field += ch; i++; continue; }
+      if (ch === ",") { row.push({ raw: field, quoted: field.startsWith('"') && field.endsWith('"') }); field = ""; i++; continue; }
+      field += ch; i++;
+    }
+    if (field !== "" || row.length > 0) row.push({ raw: field, quoted: field.startsWith('"') && field.endsWith('"') });
+    if (row.length > 0) rows.push(row);
+  }
+  return rows;
+}
+
+function parseT2Header(header) {
+  const hm = header.match(/^@T2\s+(.+)$/);
+  if (!hm) return null;
   const typeMap = { "int": "i", "string": "s", "float": "f", "bool": "b" };
-  const headerParts = m[2].split(/\s+/);
-  
-  // Parse alternating name type pairs
+  const headerParts = hm[1].split(/\s+/);
   if (headerParts.length % 2 !== 0) throw new Error("header has odd number of tokens");
   const cols = [];
   for (let i = 0; i < headerParts.length; i += 2) {
@@ -139,12 +161,36 @@ export function tableDecode(text) {
     if (!t) throw new Error(`unknown type: ${tn}`);
     cols.push([name, t]);
   }
+  return { cols, rowParser: parseSpaceBody, legacy: false };
+}
+
+function parseT1LegacyHeader(header) {
+  const hm = header.match(/^@T1\((.*)\)$/);
+  if (!hm) return null;
+  const inner = hm[1].trim();
+  const cols = inner === "" ? [] : inner.split(",").map(part => {
+    const p = part.split(":");
+    if (p.length !== 2 || !p[0] || !p[1]) throw new Error("bad legacy header column");
+    return [p[0], p[1]];
+  });
+  return { cols, rowParser: parseCsvBody, legacy: true };
+}
+
+export function tableDecode(text, { onLegacyFormat } = {}) {
+  const nl = text.indexOf("\n");
+  const header = nl === -1 ? text : text.slice(0, nl);
+  const body = nl === -1 ? "" : text.slice(nl + 1);
+  const parsed = parseT2Header(header) || parseT1LegacyHeader(header);
+  if (!parsed) throw new Error("bad table header");
+  const { cols, rowParser, legacy } = parsed;
+  if (legacy && typeof onLegacyFormat === "function") onLegacyFormat();
   for (const [name, t] of cols) {
     if (name === "__proto__") throw new Error(`unsafe column name: ${name}`); // symmetric with encode; never put a __proto__ key on a decoded row
     if (t.length !== 1 || !"sifb".includes(t)) throw new Error(`unknown type tag: ${t}`);
+    if (/\s/.test(name)) throw new Error(`unsafe column name: ${name}`);
   }
   const out = [];
-  for (const row of parseSpaceBody(body)) {
+  for (const row of rowParser(body)) {
     if (row.length === 1 && row[0].raw === "" && !row[0].quoted) continue; // skip blank line
     if (row.length !== cols.length) throw new Error(`row width mismatch: expected ${cols.length}, got ${row.length}`);
     const obj = Object.create(null);                                  // defence in depth vs __proto__ cells
@@ -173,12 +219,12 @@ export function tableDecode(text) {
 }
 
 // Receive-side inverse of the table encoder. Scans free-form model OUTPUT for
-// embedded @T1(...) blocks and expands each one back into a JSON array, in
-// place. This is what makes "reply in @T1 to save output tokens" a real
+// embedded @T1/@T2 blocks and expands each one back into a JSON array, in
+// place. This is what makes "reply in @T2 to save output tokens" a real
 // round-trip instead of advice: the model emits a compact table, your app still
 // gets JSON. Anything that is not a valid table is left exactly as written - it
 // never throws, and never invents or drops data.
-export function decodeTables(text, { space = 0 } = {}) {
+export function decodeTables(text, { space = 0, onLegacyFormat } = {}) {
   if (typeof text !== "string" || !text.includes("@T")) return text;
   const MAX_SHRINK_ATTEMPTS = 64;       // bound the retry loop on hostile malformed blocks
   const MAX_BLOCK_CHARS = 256_000;      // never spend O(n^2) reparsing an enormous block
@@ -186,17 +232,16 @@ export function decodeTables(text, { space = 0 } = {}) {
   const out = [];
   let i = 0;
   while (i < lines.length) {
-    if (!/^\s*@T\d+\s+/.test(lines[i])) { out.push(lines[i]); i++; continue; }
+    if (!/^\s*@T\d+(?:\s+|\()/.test(lines[i])) { out.push(lines[i]); i++; continue; }
     const trimmed = lines[i].trimStart();
     const indent = lines[i].slice(0, lines[i].length - trimmed.length);
     const header = trimmed.trimEnd();
-    // Fail fast on anything that is not a version-1 header
-    const hm = header.match(/^@T(\d+)\s+(.+)$/);
-    if (!hm || hm[1] !== "1") { out.push(lines[i]); i++; continue; }
+    // Fail fast on anything that is not a recognized table header form.
+    if (!/^@T2\s+.+$/.test(header) && !/^@T1\(.+\)$/.test(header)) { out.push(lines[i]); i++; continue; }
     // Gather contiguous candidate rows: stop at a blank line, the next table
     // header, end of input, or once the block grows too large to transform safely.
     let j = i + 1, blockChars = header.length;
-    while (j < lines.length && lines[j].trim() !== "" && !/^\s*@T\d+\s+/.test(lines[j]) && blockChars <= MAX_BLOCK_CHARS) {
+    while (j < lines.length && lines[j].trim() !== "" && !/^\s*@T\d+(?:\s+|\()/.test(lines[j]) && blockChars <= MAX_BLOCK_CHARS) {
       blockChars += lines[j].length + 1; j++;
     }
     if (blockChars > MAX_BLOCK_CHARS) { out.push(lines[i]); i++; continue; }   // oversized -> leave untouched
@@ -209,7 +254,7 @@ export function decodeTables(text, { space = 0 } = {}) {
     for (let k = j; k >= minK; k--) {
       const bodyLines = lines.slice(i + 1, k).map(l => (l.startsWith(indent) ? l.slice(indent.length) : l));
       try {
-        const v = tableDecode(header + "\n" + bodyLines.join("\n"));
+        const v = tableDecode(header + "\n" + bodyLines.join("\n"), { onLegacyFormat });
         if (v.length >= 1) { decoded = v; end = k; break; }
       } catch { /* try fewer rows */ }
     }
